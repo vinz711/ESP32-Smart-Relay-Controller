@@ -1,0 +1,10 @@
+{
+  "profile": "terrarium",
+  "description": "Example terrarium relay configuration",
+  "relays": [
+    { "id": 1, "name": "Grow Light", "icon": "light", "power_watts": 40 },
+    { "id": 2, "name": "Ventilation Fan", "icon": "fan", "power_watts": 20 },
+    { "id": 3, "name": "Misting Pump", "icon": "water", "power_watts": 25 },
+    { "id": 4, "name": "Heater", "icon": "heater", "power_watts": 60 }
+  ]
+}
