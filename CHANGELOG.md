@@ -2,29 +2,21 @@
 
 All notable changes to this project will be documented here.
 
-## [Unreleased]
+## v1.0.0 — Initial Stable Baseline
 
-- Establish generic ESP32 Smart Relay Controller repository structure.
-- Prepare application profiles for aquarium, terrarium, greenhouse, and generic use.
-- Preserve the tested aquarium controller as the initial firmware baseline.
+- Established the ESP32 Smart Relay Controller as a standalone generic project.
+- Added the first stable 4-channel controller firmware baseline.
+- Preserved the tested aquarium controller behavior as the initial validation application.
+- Included AUTO / MANUAL operation and multiple schedules.
+- Included weekday, overnight, and 24×7 scheduling.
+- Included manual override and emergency OFF controls.
+- Included configurable relay names/icons and power settings.
+- Included runtime tracking, activity logging, and energy estimation.
+- Included Wi-Fi configuration, NTP / IST, mDNS, and Arduino OTA support.
+- Removed personal identity and personal Wi-Fi credentials from the public source baseline.
 
-## v2.0.1
+## Unreleased
 
-The initial reference firmware release is based on the tested aquarium controller implementation.
-
-### Features
-
-- ESP32 Wi-Fi relay control
-- Web-based control dashboard
-- AUTO / MANUAL modes
-- Multiple schedules
-- Weekday scheduling
-- Manual relay control
-- Emergency OFF behavior
-- Configurable relay names
-- Wi-Fi configuration through the web interface
-- Activity logging
-- Runtime tracking
-- Power usage estimation
-
-> Historical development files are retained in the original private `Scripts` repository. The new repository will contain the cleaned and reusable project baseline.
+- Modular controller core and application profiles.
+- ESP32 firmware CI build validation.
+- Additional hardware targets and sensor integrations.
