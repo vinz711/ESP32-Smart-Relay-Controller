@@ -1,0 +1,30 @@
+{
+  "profile": "aquarium",
+  "description": "Example aquarium relay configuration",
+  "relays": [
+    {
+      "id": 1,
+      "name": "Main Aquarium Light",
+      "icon": "light",
+      "power_watts": 70
+    },
+    {
+      "id": 2,
+      "name": "Air Pump",
+      "icon": "air",
+      "power_watts": 15
+    },
+    {
+      "id": 3,
+      "name": "Water Filter",
+      "icon": "filter",
+      "power_watts": 40
+    },
+    {
+      "id": 4,
+      "name": "Heater",
+      "icon": "heater",
+      "power_watts": 100
+    }
+  ]
+}
