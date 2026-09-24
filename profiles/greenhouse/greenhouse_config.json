@@ -1,0 +1,10 @@
+{
+  "profile": "greenhouse",
+  "description": "Example greenhouse relay configuration",
+  "relays": [
+    { "id": 1, "name": "Grow Light", "icon": "light", "power_watts": 120 },
+    { "id": 2, "name": "Water Pump", "icon": "pump", "power_watts": 60 },
+    { "id": 3, "name": "Exhaust Fan", "icon": "fan", "power_watts": 40 },
+    { "id": 4, "name": "Misting Valve", "icon": "water", "power_watts": 30 }
+  ]
+}
