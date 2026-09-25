@@ -35,4 +35,7 @@ jobs:
 
       - name: Compile firmware
         run: |
-          arduino-cli compile             --fqbn esp32:esp32:esp32             --warnings all             firmware/v1.0.0
+          arduino-cli compile \
+            --fqbn esp32:esp32:esp32 \
+            --warnings all \
+            firmware/v1.0.0/ESP32_Smart_Relay_Controller.ino
