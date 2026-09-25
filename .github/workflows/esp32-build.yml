@@ -1,0 +1,47 @@
+name: ESP32 Firmware Build
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        run: |
+          git init .
+          git remote add origin "https://github.com/${{ github.repository }}.git"
+          git fetch --depth=1 origin "${{ github.sha }}"
+          git checkout --detach FETCH_HEAD
+
+      - name: Install Arduino CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
+          echo "${GITHUB_WORKSPACE}/bin" >> "${GITHUB_PATH}"
+
+      - name: Install ESP32 core
+        run: |
+          arduino-cli config init
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32
+
+      - name: Install required libraries
+        run: |
+          arduino-cli lib install "ArduinoJson"
+
+      - name: Prepare Arduino sketch
+        run: |
+          rm -rf /tmp/ESP32_Smart_Relay_Controller
+          mkdir -p /tmp/ESP32_Smart_Relay_Controller
+          cp firmware/v1.0.0/ESP32_Smart_Relay_Controller.ino /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+
+      - name: Compile firmware
+        run: |
+          arduino-cli compile \
+            --fqbn esp32:esp32:esp32 \
+            --warnings all \
+            /tmp/ESP32_Smart_Relay_Controller
