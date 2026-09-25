@@ -21,7 +21,7 @@ jobs:
       - name: Install Arduino CLI
         run: |
           curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
-          echo "$HOME/bin" >> "$GITHUB_PATH"
+          echo "${GITHUB_WORKSPACE}/bin" >> "${GITHUB_PATH}"
 
       - name: Install ESP32 core
         run: |
@@ -35,7 +35,4 @@ jobs:
 
       - name: Compile firmware
         run: |
-          arduino-cli compile \
-            --fqbn esp32:esp32:esp32 \
-            --warnings all \
-            firmware/v1.0.0
+          arduino-cli compile             --fqbn esp32:esp32:esp32             --warnings all             firmware/v1.0.0
