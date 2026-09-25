@@ -33,9 +33,15 @@ jobs:
         run: |
           arduino-cli lib install "ArduinoJson"
 
+      - name: Prepare Arduino sketch
+        run: |
+          rm -rf /tmp/ESP32_Smart_Relay_Controller
+          mkdir -p /tmp/ESP32_Smart_Relay_Controller
+          cp firmware/v1.0.0/ESP32_Smart_Relay_Controller.ino /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+
       - name: Compile firmware
         run: |
           arduino-cli compile \
             --fqbn esp32:esp32:esp32 \
             --warnings all \
-            firmware/v1.0.0/ESP32_Smart_Relay_Controller.ino
+            /tmp/ESP32_Smart_Relay_Controller
