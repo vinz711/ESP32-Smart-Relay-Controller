@@ -94,6 +94,7 @@ struct RelayConfig {
   ScheduleSlot schedules[MAX_SCHEDULES];
   unsigned long runtimeToday;
   unsigned long stateStartedMillis;
+  float wattage;
 };
 
 RelayConfig relays[RELAY_COUNT];
@@ -104,6 +105,7 @@ RelayConfig relays[RELAY_COUNT];
 
 String wifiSSID;
 String wifiPassword;
+float electricityTariff = 0.0f; // INR per kWh
 
 // ============================================================
 // TIME
@@ -159,6 +161,7 @@ void setDefaultRelayData() {
     relays[i].emergencyOff = false;
     relays[i].runtimeToday = 0;
     relays[i].stateStartedMillis = 0;
+    relays[i].wattage = 0.0f;
     clearSchedules(i);
   }
 
@@ -523,6 +526,7 @@ void saveRelaySettings(int id) {
   snprintf(key, sizeof(key), "icon%d", id); prefs.putString(key, relays[id].icon);
   snprintf(key, sizeof(key), "auto%d", id); prefs.putBool(key, relays[id].autoMode);
   snprintf(key, sizeof(key), "emerg%d", id); prefs.putBool(key, relays[id].emergencyOff);
+  snprintf(key, sizeof(key), "watt%d", id); prefs.putFloat(key, relays[id].wattage);
   snprintf(key, sizeof(key), "schedver"); prefs.putUChar(key, 2);
   for (int j = 0; j < MAX_SCHEDULES; j++) {
     snprintf(key, sizeof(key), "e%d_%d", id, j); prefs.putBool(key, relays[id].schedules[j].enabled);
@@ -542,6 +546,7 @@ void loadSettings() {
 
   wifiSSID = prefs.getString("ssid", DEFAULT_WIFI_SSID);
   wifiPassword = prefs.getString("pass", DEFAULT_WIFI_PASSWORD);
+  electricityTariff = prefs.getFloat("tariff", 0.0f);
 
   uint8_t version = prefs.getUChar("schedver", 0);
   for (int i = 0; i < RELAY_COUNT; i++) {
@@ -550,6 +555,7 @@ void loadSettings() {
     snprintf(key, sizeof(key), "icon%d", i); relays[i].icon = prefs.getString(key, relays[i].icon);
     snprintf(key, sizeof(key), "auto%d", i); relays[i].autoMode = prefs.getBool(key, relays[i].autoMode);
     snprintf(key, sizeof(key), "emerg%d", i); relays[i].emergencyOff = prefs.getBool(key, false);
+    snprintf(key, sizeof(key), "watt%d", i); relays[i].wattage = prefs.getFloat(key, 0.0f);
 
     if (version >= 2) {
       for (int j = 0; j < MAX_SCHEDULES; j++) {
@@ -679,6 +685,70 @@ String buildStatusJSON() {
   }
   json += "]}";
   return json;
+}
+
+// ============================================================
+// API: POWER SETTINGS
+// ============================================================
+
+void handlePowerSettings() {
+  if (server.method() != HTTP_POST ||
+      !server.hasArg("tariff")) {
+    server.send(400, "text/plain", "Missing parameters");
+    return;
+  }
+
+  float tariff = server.arg("tariff").toFloat();
+  if (tariff < 0.0f || tariff > 100000.0f) {
+    server.send(400, "text/plain", "Invalid tariff");
+    return;
+  }
+
+  for (int i = 0; i < RELAY_COUNT; i++) {
+    String argName = "watt" + String(i + 1);
+    if (!server.hasArg(argName)) {
+      server.send(400, "text/plain", "Missing wattage");
+      return;
+    }
+
+    float watts = server.arg(argName).toFloat();
+    if (watts < 0.0f || watts > 5000.0f) {
+      server.send(400, "text/plain", "Invalid wattage");
+      return;
+    }
+    relays[i].wattage = watts;
+  }
+
+  electricityTariff = tariff;
+  prefs.putFloat("tariff", electricityTariff);
+
+  for (int i = 0; i < RELAY_COUNT; i++) {
+    char key[32];
+    snprintf(key, sizeof(key), "watt%d", i);
+    prefs.putFloat(key, relays[i].wattage);
+  }
+
+  addLog("Power settings updated");
+  server.send(200, "application/json", buildStatusJSON());
+}
+
+// ============================================================
+// POWER CALCULATIONS
+// ============================================================
+
+float getTodayEnergyWh(int id) {
+  if (id < 0 || id >= RELAY_COUNT) return 0.0f;
+  return (getCurrentRuntime(id) / 3600000.0f) * relays[id].wattage;
+}
+
+float getTodayTotalEnergyWh() {
+  float total = 0.0f;
+  for (int i = 0; i < RELAY_COUNT; i++) total += getTodayEnergyWh(i);
+  return total;
+}
+
+float getTodayCost() {
+  return (getTodayTotalEnergyWh() / 1000.0f) * electricityTariff;
 }
 
 // ============================================================
@@ -2191,7 +2261,7 @@ body.dark .runtime {
 
   <p style="margin-top:0;color:var(--muted);font-size:12px">
     Enter the approximate wattage of each connected device. Values are
-    stored locally in this browser and are used for dashboard estimates.
+    stored in the ESP32 and used for dashboard estimates.
   </p>
 
   <div class="power-grid">
@@ -2514,15 +2584,14 @@ function loadStatus() {
 const POWER_DEFAULTS = [0, 0, 0, 0];
 
 function getPowerSettings() {
-  let watts = POWER_DEFAULTS.map((value, index) => {
-    let stored = Number(localStorage.getItem("relayWattage" + (index + 1)));
-    return Number.isFinite(stored) && stored >= 0 ? stored : value;
-  });
+  if (DATA && Array.isArray(DATA.relays)) {
+    return {
+      watts: DATA.relays.map(r => Number(r.wattage || 0)),
+      tariff: Number(DATA.tariff || 0)
+    };
+  }
 
-  let tariff = Number(localStorage.getItem("electricityTariff"));
-  if (!Number.isFinite(tariff) || tariff < 0) tariff = 0;
-
-  return { watts, tariff };
+  return { watts: POWER_DEFAULTS.slice(), tariff: 0 };
 }
 
 function loadPowerSettings() {
@@ -2538,18 +2607,38 @@ function loadPowerSettings() {
 }
 
 function savePowerSettings() {
+  let params = new URLSearchParams();
+
   for (let i = 0; i < 4; i++) {
     let input = $("wattage" + (i + 1));
     let value = Number(input ? input.value : 0);
     if (!Number.isFinite(value) || value < 0) value = 0;
-    localStorage.setItem("relayWattage" + (i + 1), value);
+    params.append("watt" + (i + 1), value);
   }
 
   let tariff = Number($("tariff") ? $("tariff").value : 0);
   if (!Number.isFinite(tariff) || tariff < 0) tariff = 0;
-  localStorage.setItem("electricityTariff", tariff);
+  params.append("tariff", tariff);
 
-  renderDashboard();
+  fetch("/api/power", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: params.toString()
+  })
+  .then(response => {
+    if (!response.ok) throw new Error("Power settings failed");
+    return response.json();
+  })
+  .then(data => {
+    DATA = data;
+    render();
+  })
+  .catch(() => {
+    $("systemStatus").innerHTML =
+      "<span style='color:#f23845'>● Failed to save power settings</span>";
+  });
 }
 
 function formatTotalRuntime(ms) {
@@ -2565,7 +2654,7 @@ function getNextSchedule() {
   if (!DATA || !DATA.relays) return null;
 
   const now = new Date();
-  const currentDay = (now.getDay() + 6) % 7; // Monday = 0
+  const currentDay = (now.getDay() + 6) % 7;
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
   let best = null;
@@ -2581,75 +2670,18 @@ function getNextSchedule() {
         if (!(slot.days & (1 << day))) continue;
         if (offset === 0 && start <= currentMinutes) continue;
 
-        let candidate = new Date(now);
-        candidate.setHours(0, 0, 0, 0);
-        candidate.setDate(candidate.getDate() + offset);
-        candidate.setMinutes(start);
+        let date = new Date(now);
+        date.setDate(now.getDate() + offset);
+        date.setHours(Math.floor(start / 60), start % 60, 0, 0);
 
-        if (!best || candidate < best.date) {
-          best = {
-            date: candidate,
-            relay: relay,
-            slot: slotIndex
-          };
+        if (!best || date < best.date) {
+          best = { relay, slot: slotIndex, date };
         }
       }
     });
   });
 
   return best;
-}
-
-function renderDashboard() {
-  if (!DATA || !DATA.relays) return;
-
-  const settings = getPowerSettings();
-  let active = DATA.relays.filter(r => r.state).length;
-  let totalRuntime = DATA.relays.reduce((sum, r) => sum + Number(r.runtime || 0), 0);
-
-  let currentPower = DATA.relays.reduce((sum, relay, index) => {
-    return sum + (relay.state ? settings.watts[index] : 0);
-  }, 0);
-
-  let energyWh = DATA.relays.reduce((sum, relay, index) => {
-    return sum + ((Number(relay.runtime || 0) / 3600000) * settings.watts[index]);
-  }, 0);
-
-  let cost = (energyWh / 1000) * settings.tariff;
-
-  $("summaryActive").textContent = active + " / " + DATA.relays.length;
-  $("summaryActiveDetail").textContent =
-    active ? DATA.relays.filter(r => r.state).map(r => r.name).join(" • ") : "All relays OFF";
-
-  $("summaryRuntime").textContent = formatTotalRuntime(totalRuntime);
-  $("summaryRuntimeDetail").textContent = "Across all relays";
-
-  $("summaryPower").textContent = Math.round(currentPower) + " W";
-  $("summaryEnergy").textContent =
-    energyWh.toFixed(2) + " Wh today";
-
-  $("summaryCost").textContent = "₹" + cost.toFixed(2);
-
-  let next = getNextSchedule();
-
-  if (!next) {
-    $("summaryNext").textContent = "None";
-    $("summaryNextDetail").textContent = "No upcoming schedule";
-  } else {
-    let time = next.date.toLocaleTimeString("en-IN", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true
-    });
-
-    let day = next.date.toLocaleDateString("en-IN", {
-      weekday: "short"
-    });
-
-    $("summaryNext").textContent = time;
-    $("summaryNextDetail").textContent =
-      next.relay.name + " • " + day + " • Schedule " + (next.slot + 1);
-  }
 }
 
 // ==========================================================
@@ -3690,6 +3722,7 @@ void handleReset() {
 
   prefs.clear();
 
+  electricityTariff = 0.0f;
   setDefaultRelayData();
 
   for (int i = 0; i < RELAY_COUNT; i++) {
@@ -3854,6 +3887,12 @@ void setup() {
     "/api/logs",
     HTTP_GET,
     handleLogs
+  );
+
+  server.on(
+    "/api/power",
+    HTTP_POST,
+    handlePowerSettings
   );
 
 
