@@ -41,7 +41,26 @@ jobs:
 
       - name: Compile firmware
         run: |
+          rm -rf build
+          mkdir -p build/firmware
           arduino-cli compile \
             --fqbn esp32:esp32:esp32 \
             --warnings all \
+            --output-dir build/firmware \
             /tmp/ESP32_Smart_Relay_Controller
+
+      - name: Publish build summary
+        run: |
+          echo "## ESP32 Firmware Build" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Firmware source: \`firmware/v1.0.0/ESP32_Smart_Relay_Controller.ino\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Board: \`esp32:esp32:esp32\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          ls -lh build/firmware >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### SHA-256" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          sha256sum build/firmware/* >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
