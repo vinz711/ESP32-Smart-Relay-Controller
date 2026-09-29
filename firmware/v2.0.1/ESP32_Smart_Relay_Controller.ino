@@ -698,7 +698,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 name="viewport"
 content="width=device-width, initial-scale=1.0">
 
-<title>ESP32 Smart Relay Controller</title>
+<title>Aquarium Control – Smart Management System</title>
 
 <style>
 
@@ -1002,6 +1002,120 @@ body.dark .brand h1 {
   padding:
     12px
     16px;
+}
+
+/* =========================================================
+   DASHBOARD SUMMARY
+   ========================================================= */
+
+.summary-grid {
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+  margin-bottom:14px;
+}
+
+.summary-card {
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  box-shadow:var(--shadow);
+  padding:14px;
+  min-width:0;
+}
+
+.summary-title {
+  color:var(--muted);
+  font-size:12px;
+  font-weight:bold;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+
+.summary-value {
+  margin-top:5px;
+  font-size:24px;
+  font-weight:800;
+}
+
+.summary-detail {
+  margin-top:3px;
+  color:var(--muted);
+  font-size:12px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.power-panel {
+  margin-top:14px;
+}
+
+.power-grid {
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+}
+
+.power-field label {
+  display:block;
+  color:var(--muted);
+  font-size:12px;
+  margin-bottom:5px;
+}
+
+.power-field input {
+  width:100%;
+  padding:9px 10px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:var(--card);
+  color:var(--text);
+}
+
+.power-total {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-top:12px;
+  padding-top:10px;
+  border-top:1px solid var(--border);
+  color:var(--muted);
+  font-size:13px;
+}
+
+.power-total strong {
+  color:var(--text);
+}
+
+@media(max-width:900px) {
+  .summary-grid {
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  .power-grid {
+    grid-template-columns:repeat(2,1fr);
+  }
+}
+
+@media(max-width:600px) {
+  .summary-grid {
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+
+  .summary-card {
+    padding:11px;
+  }
+
+  .summary-value {
+    font-size:20px;
+  }
+
+  .power-grid {
+    grid-template-columns:1fr 1fr;
+  }
 }
 
 /* =========================================================
@@ -1851,7 +1965,7 @@ body.dark .runtime {
     <div>
 
       <h1>
-        ESP32 Smart Relay Controller
+        Aquarium Control – Smart Management System
       </h1>
 
       <p>
@@ -1974,6 +2088,39 @@ body.dark .runtime {
 
 
 <!-- ========================================================
+     DASHBOARD SUMMARY
+     ======================================================== -->
+
+<section class="summary-grid">
+
+  <div class="summary-card">
+    <div class="summary-title">Active Relays</div>
+    <div class="summary-value" id="summaryActive">0 / 4</div>
+    <div class="summary-detail" id="summaryActiveDetail">All relays OFF</div>
+  </div>
+
+  <div class="summary-card">
+    <div class="summary-title">Today's Runtime</div>
+    <div class="summary-value" id="summaryRuntime">0m</div>
+    <div class="summary-detail" id="summaryRuntimeDetail">Across all relays</div>
+  </div>
+
+  <div class="summary-card">
+    <div class="summary-title">Estimated Power Usage</div>
+    <div class="summary-value" id="summaryPower">0 W</div>
+    <div class="summary-detail" id="summaryEnergy">0 Wh today</div>
+  </div>
+
+  <div class="summary-card">
+    <div class="summary-title">Next Scheduled</div>
+    <div class="summary-value" id="summaryNext">None</div>
+    <div class="summary-detail" id="summaryNextDetail">No upcoming schedule</div>
+  </div>
+
+</section>
+
+
+<!-- ========================================================
      RELAYS
      ======================================================== -->
 
@@ -2027,6 +2174,68 @@ body.dark .runtime {
 
       ● Checking system...
 
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- ========================================================
+     POWER SETTINGS
+     ======================================================== -->
+
+<section class="panel power-panel">
+
+  <h3>⚡ Power Settings</h3>
+
+  <p style="margin-top:0;color:var(--muted);font-size:12px">
+    Enter the approximate wattage of each connected device. Values are
+    stored locally in this browser and are used for dashboard estimates.
+  </p>
+
+  <div class="power-grid">
+
+    <div class="power-field">
+      <label>Relay 1 Wattage (W)</label>
+      <input id="wattage1" type="number" min="0" step="1" value="0"
+             onchange="savePowerSettings()">
+    </div>
+
+    <div class="power-field">
+      <label>Relay 2 Wattage (W)</label>
+      <input id="wattage2" type="number" min="0" step="1" value="0"
+             onchange="savePowerSettings()">
+    </div>
+
+    <div class="power-field">
+      <label>Relay 3 Wattage (W)</label>
+      <input id="wattage3" type="number" min="0" step="1" value="0"
+             onchange="savePowerSettings()">
+    </div>
+
+    <div class="power-field">
+      <label>Relay 4 Wattage (W)</label>
+      <input id="wattage4" type="number" min="0" step="1" value="0"
+             onchange="savePowerSettings()">
+    </div>
+
+  </div>
+
+  <div class="power-grid" style="margin-top:10px;grid-template-columns:1fr 3fr">
+
+    <div class="power-field">
+      <label>Electricity Tariff (₹ / kWh)</label>
+      <input id="tariff" type="number" min="0" step="0.01" value="0"
+             onchange="savePowerSettings()">
+    </div>
+
+    <div class="power-field">
+      <label>Estimate</label>
+      <div class="power-total">
+        <span>Today's estimated cost</span>
+        <strong id="summaryCost">₹0.00</strong>
+      </div>
     </div>
 
   </div>
@@ -2299,6 +2508,151 @@ function loadStatus() {
 
 
 // ==========================================================
+// POWER / DASHBOARD HELPERS
+// ==========================================================
+
+const POWER_DEFAULTS = [0, 0, 0, 0];
+
+function getPowerSettings() {
+  let watts = POWER_DEFAULTS.map((value, index) => {
+    let stored = Number(localStorage.getItem("relayWattage" + (index + 1)));
+    return Number.isFinite(stored) && stored >= 0 ? stored : value;
+  });
+
+  let tariff = Number(localStorage.getItem("electricityTariff"));
+  if (!Number.isFinite(tariff) || tariff < 0) tariff = 0;
+
+  return { watts, tariff };
+}
+
+function loadPowerSettings() {
+  let settings = getPowerSettings();
+
+  settings.watts.forEach((value, index) => {
+    let input = $("wattage" + (index + 1));
+    if (input) input.value = value;
+  });
+
+  let tariffInput = $("tariff");
+  if (tariffInput) tariffInput.value = settings.tariff;
+}
+
+function savePowerSettings() {
+  for (let i = 0; i < 4; i++) {
+    let input = $("wattage" + (i + 1));
+    let value = Number(input ? input.value : 0);
+    if (!Number.isFinite(value) || value < 0) value = 0;
+    localStorage.setItem("relayWattage" + (i + 1), value);
+  }
+
+  let tariff = Number($("tariff") ? $("tariff").value : 0);
+  if (!Number.isFinite(tariff) || tariff < 0) tariff = 0;
+  localStorage.setItem("electricityTariff", tariff);
+
+  renderDashboard();
+}
+
+function formatTotalRuntime(ms) {
+  let minutes = Math.floor(ms / 60000);
+  let hours = Math.floor(minutes / 60);
+  minutes %= 60;
+
+  if (hours > 0) return hours + "h " + minutes + "m";
+  return minutes + "m";
+}
+
+function getNextSchedule() {
+  if (!DATA || !DATA.relays) return null;
+
+  const now = new Date();
+  const currentDay = (now.getDay() + 6) % 7; // Monday = 0
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  let best = null;
+
+  DATA.relays.forEach(relay => {
+    relay.schedules.forEach((slot, slotIndex) => {
+      if (!slot.enabled || !slot.days) return;
+
+      for (let offset = 0; offset < 8; offset++) {
+        let day = (currentDay + offset) % 7;
+        let start = Number(slot.start);
+
+        if (!(slot.days & (1 << day))) continue;
+        if (offset === 0 && start <= currentMinutes) continue;
+
+        let candidate = new Date(now);
+        candidate.setHours(0, 0, 0, 0);
+        candidate.setDate(candidate.getDate() + offset);
+        candidate.setMinutes(start);
+
+        if (!best || candidate < best.date) {
+          best = {
+            date: candidate,
+            relay: relay,
+            slot: slotIndex
+          };
+        }
+      }
+    });
+  });
+
+  return best;
+}
+
+function renderDashboard() {
+  if (!DATA || !DATA.relays) return;
+
+  const settings = getPowerSettings();
+  let active = DATA.relays.filter(r => r.state).length;
+  let totalRuntime = DATA.relays.reduce((sum, r) => sum + Number(r.runtime || 0), 0);
+
+  let currentPower = DATA.relays.reduce((sum, relay, index) => {
+    return sum + (relay.state ? settings.watts[index] : 0);
+  }, 0);
+
+  let energyWh = DATA.relays.reduce((sum, relay, index) => {
+    return sum + ((Number(relay.runtime || 0) / 3600000) * settings.watts[index]);
+  }, 0);
+
+  let cost = (energyWh / 1000) * settings.tariff;
+
+  $("summaryActive").textContent = active + " / " + DATA.relays.length;
+  $("summaryActiveDetail").textContent =
+    active ? DATA.relays.filter(r => r.state).map(r => r.name).join(" • ") : "All relays OFF";
+
+  $("summaryRuntime").textContent = formatTotalRuntime(totalRuntime);
+  $("summaryRuntimeDetail").textContent = "Across all relays";
+
+  $("summaryPower").textContent = Math.round(currentPower) + " W";
+  $("summaryEnergy").textContent =
+    energyWh.toFixed(2) + " Wh today";
+
+  $("summaryCost").textContent = "₹" + cost.toFixed(2);
+
+  let next = getNextSchedule();
+
+  if (!next) {
+    $("summaryNext").textContent = "None";
+    $("summaryNextDetail").textContent = "No upcoming schedule";
+  } else {
+    let time = next.date.toLocaleTimeString("en-IN", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true
+    });
+
+    let day = next.date.toLocaleDateString("en-IN", {
+      weekday: "short"
+    });
+
+    $("summaryNext").textContent = time;
+    $("summaryNextDetail").textContent =
+      next.relay.name + " • " + day + " • Schedule " + (next.slot + 1);
+  }
+}
+
+// ==========================================================
 // RENDER
 // ==========================================================
 
@@ -2498,6 +2852,7 @@ function render() {
 
 
   $("relayGrid").innerHTML = html;
+  renderDashboard();
 }
 
 
@@ -3009,6 +3364,7 @@ setInterval(
 );
 
 
+loadPowerSettings();
 loadStatus();
 
 setInterval(
