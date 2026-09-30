@@ -37,7 +37,7 @@ jobs:
         run: |
           rm -rf /tmp/ESP32_Smart_Relay_Controller
           mkdir -p /tmp/ESP32_Smart_Relay_Controller
-          cp firmware/v1.0.0/ESP32_Smart_Relay_Controller.ino /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          cp firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
 
       - name: Compile firmware
         run: |
@@ -53,7 +53,7 @@ jobs:
         run: |
           echo "## ESP32 Firmware Build" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Firmware source: \`firmware/v1.0.0/ESP32_Smart_Relay_Controller.ino\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Firmware source: \`firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Board: \`esp32:esp32:esp32\`" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo '```text' >> "$GITHUB_STEP_SUMMARY"
