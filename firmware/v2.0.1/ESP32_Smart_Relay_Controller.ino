@@ -94,6 +94,7 @@ struct RelayConfig {
   ScheduleSlot schedules[MAX_SCHEDULES];
   unsigned long runtimeToday;
   unsigned long stateStartedMillis;
+  float wattage;
 };
 
 RelayConfig relays[RELAY_COUNT];
@@ -104,6 +105,7 @@ RelayConfig relays[RELAY_COUNT];
 
 String wifiSSID;
 String wifiPassword;
+float electricityTariff = 0.0f; // INR per kWh
 
 // ============================================================
 // TIME
@@ -159,6 +161,7 @@ void setDefaultRelayData() {
     relays[i].emergencyOff = false;
     relays[i].runtimeToday = 0;
     relays[i].stateStartedMillis = 0;
+    relays[i].wattage = 0.0f;
     clearSchedules(i);
   }
 
@@ -523,6 +526,7 @@ void saveRelaySettings(int id) {
   snprintf(key, sizeof(key), "icon%d", id); prefs.putString(key, relays[id].icon);
   snprintf(key, sizeof(key), "auto%d", id); prefs.putBool(key, relays[id].autoMode);
   snprintf(key, sizeof(key), "emerg%d", id); prefs.putBool(key, relays[id].emergencyOff);
+  snprintf(key, sizeof(key), "watt%d", id); prefs.putFloat(key, relays[id].wattage);
   snprintf(key, sizeof(key), "schedver"); prefs.putUChar(key, 2);
   for (int j = 0; j < MAX_SCHEDULES; j++) {
     snprintf(key, sizeof(key), "e%d_%d", id, j); prefs.putBool(key, relays[id].schedules[j].enabled);
@@ -542,6 +546,7 @@ void loadSettings() {
 
   wifiSSID = prefs.getString("ssid", DEFAULT_WIFI_SSID);
   wifiPassword = prefs.getString("pass", DEFAULT_WIFI_PASSWORD);
+  electricityTariff = prefs.getFloat("tariff", 0.0f);
 
   uint8_t version = prefs.getUChar("schedver", 0);
   for (int i = 0; i < RELAY_COUNT; i++) {
@@ -550,6 +555,7 @@ void loadSettings() {
     snprintf(key, sizeof(key), "icon%d", i); relays[i].icon = prefs.getString(key, relays[i].icon);
     snprintf(key, sizeof(key), "auto%d", i); relays[i].autoMode = prefs.getBool(key, relays[i].autoMode);
     snprintf(key, sizeof(key), "emerg%d", i); relays[i].emergencyOff = prefs.getBool(key, false);
+    snprintf(key, sizeof(key), "watt%d", i); relays[i].wattage = prefs.getFloat(key, 0.0f);
 
     if (version >= 2) {
       for (int j = 0; j < MAX_SCHEDULES; j++) {
@@ -669,6 +675,70 @@ String buildStatusJSON() {
   }
   json += "]}";
   return json;
+}
+
+// ============================================================
+// API: POWER SETTINGS
+// ============================================================
+
+void handlePowerSettings() {
+  if (server.method() != HTTP_POST ||
+      !server.hasArg("tariff")) {
+    server.send(400, "text/plain", "Missing parameters");
+    return;
+  }
+
+  float tariff = server.arg("tariff").toFloat();
+  if (tariff < 0.0f || tariff > 100000.0f) {
+    server.send(400, "text/plain", "Invalid tariff");
+    return;
+  }
+
+  for (int i = 0; i < RELAY_COUNT; i++) {
+    String argName = "watt" + String(i + 1);
+    if (!server.hasArg(argName)) {
+      server.send(400, "text/plain", "Missing wattage");
+      return;
+    }
+
+    float watts = server.arg(argName).toFloat();
+    if (watts < 0.0f || watts > 5000.0f) {
+      server.send(400, "text/plain", "Invalid wattage");
+      return;
+    }
+    relays[i].wattage = watts;
+  }
+
+  electricityTariff = tariff;
+  prefs.putFloat("tariff", electricityTariff);
+
+  for (int i = 0; i < RELAY_COUNT; i++) {
+    char key[32];
+    snprintf(key, sizeof(key), "watt%d", i);
+    prefs.putFloat(key, relays[i].wattage);
+  }
+
+  addLog("Power settings updated");
+  server.send(200, "application/json", buildStatusJSON());
+}
+
+// ============================================================
+// POWER CALCULATIONS
+// ============================================================
+
+float getTodayEnergyWh(int id) {
+  if (id < 0 || id >= RELAY_COUNT) return 0.0f;
+  return (getCurrentRuntime(id) / 3600000.0f) * relays[id].wattage;
+}
+
+float getTodayTotalEnergyWh() {
+  float total = 0.0f;
+  for (int i = 0; i < RELAY_COUNT; i++) total += getTodayEnergyWh(i);
+  return total;
+}
+
+float getTodayCost() {
+  return (getTodayTotalEnergyWh() / 1000.0f) * electricityTariff;
 }
 
 // ============================================================
@@ -1934,6 +2004,76 @@ body.dark .runtime {
 
 </section>
 
+<<<<<<< HEAD
+
+<!-- ========================================================
+     POWER SETTINGS
+     ======================================================== -->
+
+<section class="panel power-panel">
+
+  <h3>⚡ Power Settings</h3>
+
+  <p style="margin-top:0;color:var(--muted);font-size:12px">
+    Enter the approximate wattage of each connected device. Values are
+    stored in the ESP32 and used for dashboard estimates.
+  </p>
+
+  <div class="power-grid">
+
+    <div class="power-field">
+      <label>Relay 1 Wattage (W)</label>
+      <input id="wattage1" type="number" min="0" step="1" value="0"
+             onchange="savePowerSettings()">
+    </div>
+
+    <div class="power-field">
+      <label>Relay 2 Wattage (W)</label>
+      <input id="wattage2" type="number" min="0" step="1" value="0"
+             onchange="savePowerSettings()">
+    </div>
+
+    <div class="power-field">
+      <label>Relay 3 Wattage (W)</label>
+      <input id="wattage3" type="number" min="0" step="1" value="0"
+             onchange="savePowerSettings()">
+    </div>
+
+    <div class="power-field">
+      <label>Relay 4 Wattage (W)</label>
+      <input id="wattage4" type="number" min="0" step="1" value="0"
+             onchange="savePowerSettings()">
+    </div>
+
+  </div>
+
+  <div class="power-grid" style="margin-top:10px;grid-template-columns:1fr 3fr">
+
+    <div class="power-field">
+      <label>Electricity Tariff (₹ / kWh)</label>
+      <input id="tariff" type="number" min="0" step="0.01" value="0"
+             onchange="savePowerSettings()">
+    </div>
+
+    <div class="power-field">
+      <label>Estimate</label>
+      <div class="power-total">
+        <span>Today's estimated cost</span>
+        <strong id="summaryCost">₹0.00</strong>
+      </div>
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- ========================================================
+     ACTIVITY LOG
+     ======================================================== -->
+
+=======
+>>>>>>> origin/main
 <section class="log">
   <div class="log-head">
     <h3>📝 Activity Log</h3>
@@ -2032,6 +2172,121 @@ function loadStatus() {
   });
 }
 
+<<<<<<< HEAD
+
+// ==========================================================
+// POWER / DASHBOARD HELPERS
+// ==========================================================
+
+const POWER_DEFAULTS = [0, 0, 0, 0];
+
+function getPowerSettings() {
+  if (DATA && Array.isArray(DATA.relays)) {
+    return {
+      watts: DATA.relays.map(r => Number(r.wattage || 0)),
+      tariff: Number(DATA.tariff || 0)
+    };
+  }
+
+  return { watts: POWER_DEFAULTS.slice(), tariff: 0 };
+}
+
+function loadPowerSettings() {
+  let settings = getPowerSettings();
+
+  settings.watts.forEach((value, index) => {
+    let input = $("wattage" + (index + 1));
+    if (input) input.value = value;
+  });
+
+  let tariffInput = $("tariff");
+  if (tariffInput) tariffInput.value = settings.tariff;
+}
+
+function savePowerSettings() {
+  let params = new URLSearchParams();
+
+  for (let i = 0; i < 4; i++) {
+    let input = $("wattage" + (i + 1));
+    let value = Number(input ? input.value : 0);
+    if (!Number.isFinite(value) || value < 0) value = 0;
+    params.append("watt" + (i + 1), value);
+  }
+
+  let tariff = Number($("tariff") ? $("tariff").value : 0);
+  if (!Number.isFinite(tariff) || tariff < 0) tariff = 0;
+  params.append("tariff", tariff);
+
+  fetch("/api/power", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: params.toString()
+  })
+  .then(response => {
+    if (!response.ok) throw new Error("Power settings failed");
+    return response.json();
+  })
+  .then(data => {
+    DATA = data;
+    render();
+  })
+  .catch(() => {
+    $("systemStatus").innerHTML =
+      "<span style='color:#f23845'>● Failed to save power settings</span>";
+  });
+}
+
+function formatTotalRuntime(ms) {
+  let minutes = Math.floor(ms / 60000);
+  let hours = Math.floor(minutes / 60);
+  minutes %= 60;
+
+  if (hours > 0) return hours + "h " + minutes + "m";
+  return minutes + "m";
+}
+
+function getNextSchedule() {
+  if (!DATA || !DATA.relays) return null;
+
+  const now = new Date();
+  const currentDay = (now.getDay() + 6) % 7;
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  let best = null;
+
+  DATA.relays.forEach(relay => {
+    relay.schedules.forEach((slot, slotIndex) => {
+      if (!slot.enabled || !slot.days) return;
+
+      for (let offset = 0; offset < 8; offset++) {
+        let day = (currentDay + offset) % 7;
+        let start = Number(slot.start);
+
+        if (!(slot.days & (1 << day))) continue;
+        if (offset === 0 && start <= currentMinutes) continue;
+
+        let date = new Date(now);
+        date.setDate(now.getDate() + offset);
+        date.setHours(Math.floor(start / 60), start % 60, 0, 0);
+
+        if (!best || date < best.date) {
+          best = { relay, slot: slotIndex, date };
+        }
+      }
+    });
+  });
+
+  return best;
+}
+
+// ==========================================================
+// RENDER
+// ==========================================================
+
+=======
+>>>>>>> origin/main
 function render() {
 
   if (!DATA) return;
@@ -2521,7 +2776,74 @@ void setupOTA() {
     Serial.printf("OTA Error[%u]\n", error);
   });
 
+<<<<<<< HEAD
+    json += "\"";
+
+    json +=
+      jsonEscape(
+        activityLogs[i]
+      );
+
+    json += "\"";
+  }
+
+
+  json += "]}";
+
+
+  server.send(
+    200,
+    "application/json",
+    json
+  );
+}
+
+// ============================================================
+// API: CLEAR LOGS
+// ============================================================
+
+void handleClearLogs() {
+
+  logCount = 0;
+
+  server.send(
+    200,
+    "text/plain",
+    "OK"
+  );
+}
+
+// ============================================================
+// API: RESET
+// ============================================================
+
+void handleReset() {
+
+  prefs.clear();
+
+  electricityTariff = 0.0f;
+  setDefaultRelayData();
+
+  for (int i = 0; i < RELAY_COUNT; i++) {
+
+    setRelayHardware(
+      i,
+      false
+    );
+  }
+
+  server.send(
+    200,
+    "text/plain",
+    "Resetting..."
+  );
+
+  delay(1000);
+
+  ESP.restart();
+=======
   ArduinoOTA.begin();
+>>>>>>> origin/main
 }
 
 // ============================================================
@@ -2541,6 +2863,115 @@ void setup() {
   connectWiFi();
   setupOTA();
 
+<<<<<<< HEAD
+
+  // ----------------------------------------------------------
+  // OTA
+  // ----------------------------------------------------------
+  ArduinoOTA.setHostname("Aquarium-Controller");
+  ArduinoOTA.onStart([]() {
+    for (int i = 0; i < RELAY_COUNT; i++) setRelayHardware(i, false);
+    Serial.println("OTA update started - relays forced OFF");
+  });
+  ArduinoOTA.onEnd([]() { Serial.println("OTA update complete"); });
+  ArduinoOTA.onError([](ota_error_t error) { Serial.printf("OTA error[%u]\n", error); });
+  ArduinoOTA.begin();
+  Serial.println("OTA ready. Hostname: Aquarium-Controller");
+
+  // ----------------------------------------------------------
+  // Web routes
+  // ----------------------------------------------------------
+
+  server.on(
+    "/",
+    HTTP_GET,
+    []() {
+
+      server.send_P(
+        200,
+        "text/html",
+        INDEX_HTML
+      );
+
+    }
+  );
+
+
+  server.on(
+    "/api/status",
+    HTTP_GET,
+    handleStatus
+  );
+
+
+  server.on(
+    "/api/relay",
+    HTTP_GET,
+    handleRelay
+  );
+
+
+  server.on(
+    "/api/alloff",
+    HTTP_GET,
+    handleAllOff
+  );
+
+  server.on(
+    "/api/resumeall",
+    HTTP_GET,
+    handleResumeAll
+  );
+
+
+  server.on(
+    "/api/schedule",
+    HTTP_POST,
+    handleSchedule
+  );
+
+
+  server.on(
+    "/api/device",
+    HTTP_POST,
+    handleDevice
+  );
+
+
+  server.on(
+    "/api/wifi",
+    HTTP_POST,
+    handleWiFi
+  );
+
+
+  server.on(
+    "/api/logs",
+    HTTP_GET,
+    handleLogs
+  );
+
+  server.on(
+    "/api/power",
+    HTTP_POST,
+    handlePowerSettings
+  );
+
+
+  server.on(
+    "/api/logs/clear",
+    HTTP_GET,
+    handleClearLogs
+  );
+
+
+  server.on(
+    "/api/reset",
+    HTTP_GET,
+    handleReset
+  );
+
+=======
   server.on("/", HTTP_GET, handleRoot);
   server.on("/api/status", HTTP_GET, handleStatus);
   server.on("/api/logs", HTTP_GET, handleLogs);
@@ -2553,6 +2984,7 @@ void setup() {
   server.on("/api/schedule", HTTP_POST, handleSchedule);
   server.on("/api/names", HTTP_POST, handleNames);
   server.on("/api/wifi", HTTP_POST, handleWiFi);
+>>>>>>> origin/main
 
   server.begin();
   addLog("System started");
