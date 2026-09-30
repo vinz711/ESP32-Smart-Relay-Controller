@@ -573,47 +573,37 @@ void loadSettings() {
       relays[i].schedules[0].stopMinutes = oldStop;
       relays[i].schedules[0].days = oldDays;
       relays[i].schedules[0].enabled = (oldStart != oldStop);
-      saveRelaySettings(i);
     }
   }
 }
 
 // ============================================================
-// WIFI
+// CONNECT WIFI
 // ============================================================
 
 void connectWiFi() {
-
-  Serial.println();
-  Serial.println("Connecting to Wi-Fi...");
+  if (wifiSSID.length() == 0) {
+    Serial.println("Wi-Fi SSID not configured.");
+    return;
+  }
 
   WiFi.mode(WIFI_STA);
+  WiFi.begin(wifiSSID.c_str(), wifiPassword.c_str());
 
-  WiFi.begin(
-    wifiSSID.c_str(),
-    wifiPassword.c_str()
-  );
+  Serial.print("Connecting to Wi-Fi: ");
+  Serial.println(wifiSSID);
 
-  int attempts = 0;
+  unsigned long start = millis();
 
-  while (
-    WiFi.status() != WL_CONNECTED &&
-    attempts < 40
-  ) {
-
+  while (WiFi.status() != WL_CONNECTED && millis() - start < 20000UL) {
     delay(500);
-
     Serial.print(".");
-
-    attempts++;
   }
 
   Serial.println();
 
   if (WiFi.status() == WL_CONNECTED) {
-
-    Serial.println("Wi-Fi connected!");
-    Serial.print("ESP32 IP Address: ");
+    Serial.print("Wi-Fi connected. IP: ");
     Serial.println(WiFi.localIP());
 
     configTime(
@@ -765,10 +755,9 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 <meta charset="UTF-8">
 
 <meta
-name="viewport"
-content="width=device-width, initial-scale=1.0">
+name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Aquarium Control – Smart Management System</title>
+<title>ESP32 Smart Relay Controller</title>
 
 <style>
 
@@ -799,7 +788,7 @@ body.dark {
   --border:#214658;
 
   --shadow:
-    0 5px 18px rgba(0,0,0,.30);
+    0 5px 18px rgba(0,0,0,.25);
 }
 
 * {
@@ -810,163 +799,89 @@ body {
 
   margin:0;
 
-  background:
-    linear-gradient(
-      135deg,
-      var(--bg),
-      #ffffff
-    );
-
+  background:var(--bg);
   color:var(--text);
 
   font-family:
     Arial,
     Helvetica,
     sans-serif;
-
-  transition:
-    background .25s,
-    color .25s;
-}
-
-body.dark {
-
-  background:
-    linear-gradient(
-      135deg,
-      #06151e,
-      #0a202c
-    );
 }
 
 button,
 input,
 select {
-
-  font-family:inherit;
+  font:inherit;
 }
 
 button {
-
   cursor:pointer;
 }
 
-/* =========================================================
-   MAIN CONTAINER
-   ========================================================= */
-
 .container {
 
-  max-width:1500px;
+  max-width:1200px;
 
   margin:auto;
 
-  padding:
-    14px
-    18px
-    24px;
+  padding:18px;
 }
-
-/* =========================================================
-   HEADER
-   ========================================================= */
 
 .header {
 
   display:flex;
 
-  align-items:center;
-
   justify-content:space-between;
+
+  align-items:center;
 
   gap:15px;
 
-  margin-bottom:12px;
+  margin-bottom:14px;
 }
 
 .brand {
-
   display:flex;
-
   align-items:center;
-
   gap:12px;
 }
 
 .brand-icon {
-
-  font-size:46px;
-
-  line-height:1;
+  font-size:42px;
 }
 
 .brand h1 {
-
   margin:0;
-
-  font-size:
-    clamp(24px,3vw,38px);
-
-  color:#0b3766;
-}
-
-body.dark .brand h1 {
-  color:#eaf6ff;
+  font-size:28px;
 }
 
 .brand p {
-
-  margin:
-    2px
-    0
-    0;
-
+  margin:4px 0 0;
   color:var(--muted);
-
-  font-size:15px;
+  font-size:13px;
 }
 
 .top-controls {
-
   display:flex;
-
-  align-items:center;
-
   gap:8px;
 }
 
 .theme-btn,
 .settings-btn {
-
-  border:
-    1px solid
-    var(--border);
-
-  background:
-    var(--card);
-
+  border:1px solid var(--border);
+  background:var(--card);
   color:var(--text);
-
-  border-radius:12px;
-
-  padding:
-    10px
-    15px;
-
-  font-size:14px;
+  border-radius:9px;
+  padding:9px 12px;
 }
-
-/* =========================================================
-   INFO BAR
-   ========================================================= */
 
 .info-bar {
 
   display:grid;
 
   grid-template-columns:
-    1.2fr
-    1.2fr
+    1fr
+    1fr
     1fr
     auto;
 
@@ -1075,117 +990,80 @@ body.dark .brand h1 {
 }
 
 /* =========================================================
-   DASHBOARD SUMMARY
+   MONITORING SUMMARY
    ========================================================= */
 
-.summary-grid {
+.monitor-grid {
+
   display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:12px;
+
+  grid-template-columns:
+    repeat(4, 1fr);
+
+  gap:14px;
+
   margin-bottom:14px;
 }
 
-.summary-card {
+.metric {
+
   background:var(--card);
-  border:1px solid var(--border);
-  border-radius:14px;
-  box-shadow:var(--shadow);
+
+  border:
+    1px solid
+    var(--border);
+
+  border-radius:15px;
+
   padding:14px;
+
+  box-shadow:var(--shadow);
+
   min-width:0;
 }
 
-.summary-title {
+.metric-label {
+
   color:var(--muted);
+
   font-size:12px;
+
   font-weight:bold;
+
   text-transform:uppercase;
+
   letter-spacing:.04em;
 }
 
-.summary-value {
-  margin-top:5px;
-  font-size:24px;
-  font-weight:800;
-}
+.metric-value {
 
-.summary-detail {
-  margin-top:3px;
-  color:var(--muted);
-  font-size:12px;
+  margin-top:6px;
+
+  font-size:21px;
+
+  font-weight:800;
+
   white-space:nowrap;
+
   overflow:hidden;
+
   text-overflow:ellipsis;
 }
 
-.power-panel {
-  margin-top:14px;
-}
+.metric-sub {
 
-.power-grid {
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:10px;
-}
+  margin-top:4px;
 
-.power-field label {
-  display:block;
   color:var(--muted);
+
   font-size:12px;
-  margin-bottom:5px;
+
+  line-height:1.35;
 }
 
-.power-field input {
-  width:100%;
-  padding:9px 10px;
-  border:1px solid var(--border);
-  border-radius:8px;
-  background:var(--card);
-  color:var(--text);
-}
+.metric-accent {
 
-.power-total {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:10px;
-  margin-top:12px;
-  padding-top:10px;
-  border-top:1px solid var(--border);
-  color:var(--muted);
-  font-size:13px;
-}
-
-.power-total strong {
-  color:var(--text);
-}
-
-@media(max-width:900px) {
-  .summary-grid {
-    grid-template-columns:repeat(2,1fr);
-  }
-
-  .power-grid {
-    grid-template-columns:repeat(2,1fr);
-  }
-}
-
-@media(max-width:600px) {
-  .summary-grid {
-    grid-template-columns:1fr 1fr;
-    gap:8px;
-  }
-
-  .summary-card {
-    padding:11px;
-  }
-
-  .summary-value {
-    font-size:20px;
-  }
-
-  .power-grid {
-    grid-template-columns:1fr 1fr;
-  }
+  color:var(--blue);
 }
 
 /* =========================================================
@@ -1431,9 +1309,8 @@ body.dark .runtime {
   overflow:hidden;
 
   margin:
-    7px
-    0
-    8px;
+    10px
+    0;
 }
 
 .progress span {
@@ -1442,62 +1319,44 @@ body.dark .runtime {
 
   height:100%;
 
-  background:
-    linear-gradient(
-      90deg,
-      #08b95c,
-      #1683e8
-    );
+  background:var(--blue);
 
   border-radius:10px;
 }
-
-/* =========================================================
-   DAYS
-   ========================================================= */
 
 .days {
 
   display:flex;
 
-  gap:7px;
+  gap:5px;
 
-  flex-wrap:wrap;
-
-  margin:
-    6px
-    0
-    10px;
+  margin-bottom:10px;
 }
 
 .day {
 
-  width:29px;
-  height:29px;
+  width:30px;
+  height:30px;
 
   border-radius:50%;
 
-  border:none;
+  border:
+    1px solid
+    var(--border);
 
-  background:#dce6ed;
+  background:var(--card);
 
-  color:#39566b;
-
-  font-size:11px;
-
-  font-weight:bold;
+  color:var(--muted);
 }
 
 .day.active {
 
-  background:var(--green);
+  background:var(--blue);
 
   color:white;
-}
 
-/* =========================================================
-   BUTTONS
-   ========================================================= */
+  border-color:var(--blue);
+}
 
 .actions {
 
@@ -1506,43 +1365,39 @@ body.dark .runtime {
   grid-template-columns:
     1fr
     1fr
-    1fr;
+    1.2fr
+    1.2fr;
 
   gap:7px;
 }
 
 .btn {
 
-  border:0;
-
-  border-radius:8px;
-
-  padding:
-    10px
-    8px;
-
-  font-weight:bold;
-
-  color:white;
-}
-
-.btn-on {
-  background:#06b957;
-}
-
-.btn-off {
-  background:#f23845;
-}
-
-.btn-schedule {
+  border:
+    1px solid
+    var(--border);
 
   background:var(--card);
 
   color:var(--text);
 
-  border:
-    1px solid
-    var(--border);
+  border-radius:8px;
+
+  padding:9px 6px;
+
+  font-size:13px;
+}
+
+.btn-on {
+  color:var(--green);
+}
+
+.btn-off {
+  color:var(--red);
+}
+
+.btn-schedule {
+  color:var(--blue);
 }
 
 /* =========================================================
@@ -1572,43 +1427,40 @@ body.dark .runtime {
 
   border-radius:15px;
 
-  padding:15px;
+  padding:14px;
 
   box-shadow:var(--shadow);
 }
 
 .panel h3 {
-
-  margin:
-    0
-    0
-    10px;
+  margin:0 0 10px;
 }
 
 .quick {
 
-  display:flex;
+  display:grid;
+
+  grid-template-columns:
+    1fr
+    1fr
+    1fr;
 
   gap:8px;
-
-  flex-wrap:wrap;
 }
 
 .quick button {
-
-  padding:
-    10px
-    13px;
-
-  background:var(--card);
-
-  color:var(--text);
 
   border:
     1px solid
     var(--border);
 
+  background:var(--card);
+
+  color:var(--text);
+
   border-radius:8px;
+
+  padding:10px;
 }
 
 /* =========================================================
@@ -1627,8 +1479,6 @@ body.dark .runtime {
 
   border-radius:15px;
 
-  padding:15px;
-
   box-shadow:var(--shadow);
 }
 
@@ -1636,41 +1486,51 @@ body.dark .runtime {
 
   display:flex;
 
+  justify-content:space-between;
+
   align-items:center;
 
-  justify-content:space-between;
+  padding:12px 14px;
+
+  border-bottom:
+    1px solid
+    var(--border);
 }
 
-.log-content {
-
-  margin-top:10px;
-
-  max-height:180px;
-
-  overflow:auto;
-
-  font-size:12px;
-
-  color:var(--muted);
-
-  line-height:1.7;
+.log-head h3 {
+  margin:0;
 }
 
 .clear {
-
-  background:var(--card);
-
-  color:var(--text);
 
   border:
     1px solid
     var(--border);
 
+  background:var(--card);
+
+  color:var(--red);
+
   border-radius:8px;
 
-  padding:
-    7px
-    12px;
+  padding:7px 10px;
+}
+
+.log-content {
+
+  padding:12px 14px;
+
+  max-height:230px;
+
+  overflow:auto;
+
+  font-family:monospace;
+
+  font-size:12px;
+
+  line-height:1.6;
+
+  color:var(--muted);
 }
 
 /* =========================================================
@@ -1685,35 +1545,34 @@ body.dark .runtime {
 
   gap:10px;
 
-  margin-top:12px;
-
   color:var(--muted);
 
   font-size:12px;
+
+  padding:15px 2px 4px;
 }
 
 /* =========================================================
-   MODAL
+   MODALS
    ========================================================= */
 
 .modal {
-
-  display:none;
 
   position:fixed;
 
   inset:0;
 
-  background:
-    rgba(0,0,0,.55);
+  background:rgba(0,0,0,.45);
 
-  z-index:1000;
+  display:none;
 
   align-items:center;
 
   justify-content:center;
 
-  padding:15px;
+  padding:16px;
+
+  z-index:50;
 }
 
 .modal.show {
@@ -1722,8 +1581,7 @@ body.dark .runtime {
 
 .modal-box {
 
-  width:
-    min(500px,100%);
+  width:min(720px,100%);
 
   max-height:90vh;
 
@@ -1733,13 +1591,11 @@ body.dark .runtime {
 
   color:var(--text);
 
-  border-radius:15px;
+  border-radius:16px;
 
-  padding:20px;
+  padding:18px;
 
-  box-shadow:
-    0 15px 50px
-    rgba(0,0,0,.3);
+  box-shadow:0 20px 50px rgba(0,0,0,.25);
 }
 
 .modal-box h2 {
@@ -1747,21 +1603,14 @@ body.dark .runtime {
 }
 
 .form-group {
-
-  margin:
-    12px
-    0;
+  margin-bottom:12px;
 }
 
 .form-group label {
-
   display:block;
-
-  font-size:13px;
-
-  color:var(--muted);
-
   margin-bottom:5px;
+  font-size:13px;
+  font-weight:bold;
 }
 
 .form-group input,
@@ -1769,7 +1618,7 @@ body.dark .runtime {
 
   width:100%;
 
-  padding:11px;
+  padding:10px;
 
   border:
     1px solid
@@ -1786,80 +1635,104 @@ body.dark .runtime {
 
   display:flex;
 
+  justify-content:flex-end;
+
   gap:8px;
 
-  margin-top:15px;
+  margin-top:14px;
 }
 
 .modal-actions button {
 
-  flex:1;
-
-  padding:11px;
+  border:0;
 
   border-radius:8px;
 
-  border:0;
-
-  font-weight:bold;
-}
-
-.save {
-  background:var(--blue);
-  color:white;
+  padding:10px 14px;
 }
 
 .cancel {
-
-  background:
-    #dfe8ed;
-
-  color:#19354a;
+  background:#e6edf2;
+  color:#263746;
 }
 
-.week-select {
+.save {
+  background:var(--green);
+  color:white;
+}
+
+.schedule-editor {
+
+  border:
+    1px solid
+    var(--border);
+
+  border-radius:10px;
+
+  padding:10px;
+
+  margin-bottom:8px;
+}
+
+.schedule-editor-head {
 
   display:flex;
 
-  gap:7px;
+  justify-content:space-between;
 
-  flex-wrap:wrap;
+  align-items:center;
+
+  gap:8px;
+
+  margin-bottom:8px;
+}
+
+.schedule-editor-grid {
+
+  display:grid;
+
+  grid-template-columns:
+    1fr
+    1fr;
+
+  gap:8px;
+}
+
+.schedule-editor-days {
+
+  display:flex;
+
+  gap:5px;
 
   margin-top:8px;
 }
 
-.week-select button {
+.schedule-editor-days button {
 
-  width:35px;
-  height:35px;
+  width:30px;
+  height:30px;
 
   border-radius:50%;
 
-  border:0;
+  border:
+    1px solid
+    var(--border);
 
-  background:#dce6ed;
+  background:var(--card);
 
-  color:#39566b;
-
-  font-weight:bold;
+  color:var(--muted);
 }
 
-.week-select button.active {
+.schedule-editor-days button.active {
 
-  background:var(--green);
+  background:var(--blue);
 
   color:white;
+
+  border-color:var(--blue);
 }
 
-/* =========================================================
-   MOBILE
-   ========================================================= */
-
 @media(max-width:800px) {
-
-  .container {
-    padding:10px;
-  }
 
   .header {
     align-items:flex-start;
@@ -1922,6 +1795,25 @@ body.dark .runtime {
     flex:1;
   }
 
+  .monitor-grid {
+
+    grid-template-columns:
+      1fr
+      1fr;
+
+    gap:10px;
+
+    margin-bottom:10px;
+  }
+
+  .metric {
+    padding:11px;
+  }
+
+  .metric-value {
+    font-size:18px;
+  }
+
   .relay-grid {
 
     grid-template-columns:1fr;
@@ -1974,10 +1866,6 @@ body.dark .runtime {
   }
 }
 
-/* =========================================================
-   VERY SMALL PHONE
-   ========================================================= */
-
 @media(max-width:430px) {
 
   .brand p {
@@ -1997,6 +1885,14 @@ body.dark .runtime {
     font-size:18px;
   }
 
+  .monitor-grid {
+    grid-template-columns:1fr 1fr;
+  }
+
+  .metric-value {
+    font-size:17px;
+  }
+
   .schedule-text {
     font-size:12px;
   }
@@ -2010,6 +1906,7 @@ body.dark .runtime {
     width:27px;
     height:27px;
   }
+
 }
 
 </style>
@@ -2020,236 +1917,94 @@ body.dark .runtime {
 
 <div class="container">
 
-<!-- ========================================================
-     HEADER
-     ======================================================== -->
-
 <header class="header">
 
   <div class="brand">
-
-    <div class="brand-icon">
-      🐠
-    </div>
-
+    <div class="brand-icon">🐠</div>
     <div>
-
-      <h1>
-        Aquarium Control – Smart Management System
-      </h1>
-
-      <p>
-        Smart Control for a Healthier Aquarium
-      </p>
-
+      <h1>Smart Relay Controller</h1>
+      <p>ESP32 Aquarium Automation</p>
     </div>
-
   </div>
 
   <div class="top-controls">
-
-    <button
-      class="theme-btn"
-      onclick="toggleTheme()">
-
-      ☀️ Light / 🌙 Dark
-
-    </button>
-
-    <button
-      class="settings-btn"
-      onclick="wifiSettings()">
-
-      ⚙️
-
-    </button>
-
+    <button class="theme-btn" onclick="toggleTheme()">🌙 Theme</button>
+    <button class="settings-btn" onclick="openNames()">⚙️ Settings</button>
   </div>
 
 </header>
 
-
-<!-- ========================================================
-     INFO BAR
-     ======================================================== -->
-
 <section class="info-bar">
 
   <div class="info">
-
-    <div class="info-title">
-      🕐 Current Time (IST)
-    </div>
-
-    <div
-      class="info-main"
-      id="clock">
-      --:--:--
-    </div>
-
-    <div
-      class="info-small"
-      id="date">
-      --
-    </div>
-
+    <div class="info-title">🕐 IST Time</div>
+    <div class="info-main" id="clock">--:--:--</div>
+    <div class="info-small" id="date">--</div>
   </div>
-
 
   <div class="info">
-
-    <div class="info-title">
-      📶 ESP32
-    </div>
-
-    <div
-      class="info-main"
-      id="connection">
-      Checking...
-    </div>
-
-    <div
-      class="info-small"
-      id="ip">
-      --
-    </div>
-
+    <div class="info-title">📶 ESP32</div>
+    <div class="info-main" id="connection">Checking...</div>
+    <div class="info-small" id="ip">--</div>
   </div>
-
 
   <div class="info">
-
-    <div class="info-title">
-      🌡️ Room Temp
-    </div>
-
-    <div class="info-main">
-      Sensor not connected
-    </div>
-
-    <div class="info-small">
-      Ready for future sensor
-    </div>
-
+    <div class="info-title">🌡️ Room Temp</div>
+    <div class="info-main">Sensor not connected</div>
+    <div class="info-small">Ready for future sensor</div>
   </div>
-
 
   <div class="info-actions">
-
-    <button
-      class="all-off"
-      onclick="allOff()">
-
-      ⏻ All OFF
-
-    </button>
-
-    <button
-      class="refresh"
-      onclick="loadStatus()">
-
-      ↻ Refresh
-
-    </button>
-
+    <button class="all-off" onclick="allOff()">⏻ All OFF</button>
+    <button class="refresh" onclick="loadStatus()">↻ Refresh</button>
   </div>
 
 </section>
 
+<section class="relay-grid" id="relayGrid"></section>
 
-<!-- ========================================================
-     DASHBOARD SUMMARY
-     ======================================================== -->
-
-<section class="summary-grid">
-
-  <div class="summary-card">
-    <div class="summary-title">Active Relays</div>
-    <div class="summary-value" id="summaryActive">0 / 4</div>
-    <div class="summary-detail" id="summaryActiveDetail">All relays OFF</div>
+<section class="monitor-grid">
+  <div class="metric">
+    <div class="metric-label">Active Relays</div>
+    <div class="metric-value metric-accent" id="metricActive">0 / 4</div>
+    <div class="metric-sub" id="metricActiveSub">All relays OFF</div>
   </div>
-
-  <div class="summary-card">
-    <div class="summary-title">Today's Runtime</div>
-    <div class="summary-value" id="summaryRuntime">0m</div>
-    <div class="summary-detail" id="summaryRuntimeDetail">Across all relays</div>
+  <div class="metric">
+    <div class="metric-label">Today's Runtime</div>
+    <div class="metric-value" id="metricRuntime">0m</div>
+    <div class="metric-sub" id="metricRuntimeSub">Across all relays</div>
   </div>
-
-  <div class="summary-card">
-    <div class="summary-title">Estimated Power Usage</div>
-    <div class="summary-value" id="summaryPower">0 W</div>
-    <div class="summary-detail" id="summaryEnergy">0 Wh today</div>
+  <div class="metric">
+    <div class="metric-label">Schedules</div>
+    <div class="metric-value" id="metricSchedules">0</div>
+    <div class="metric-sub" id="metricSchedulesSub">Enabled schedules</div>
   </div>
-
-  <div class="summary-card">
-    <div class="summary-title">Next Scheduled</div>
-    <div class="summary-value" id="summaryNext">None</div>
-    <div class="summary-detail" id="summaryNextDetail">No upcoming schedule</div>
+  <div class="metric">
+    <div class="metric-label">Next Scheduled</div>
+    <div class="metric-value" id="metricNext">--</div>
+    <div class="metric-sub" id="metricNextSub">No upcoming event</div>
   </div>
-
 </section>
-
-
-<!-- ========================================================
-     RELAYS
-     ======================================================== -->
-
-<section
-  class="relay-grid"
-  id="relayGrid">
-
-</section>
-
-
-<!-- ========================================================
-     LOWER PANELS
-     ======================================================== -->
 
 <section class="lower-grid">
 
   <div class="panel">
-
-    <h3>
-      ⚙️ Quick Settings
-    </h3>
-
+    <h3>⚙️ Quick Settings</h3>
     <div class="quick">
-
-      <button onclick="openNames()">
-        ✏️ Device Names & Icons
-      </button>
-
-      <button onclick="openDefaults()">
-        🕐 Default Schedules
-      </button>
-
-      <button onclick="wifiSettings()">
-        📶 Wi-Fi Settings
-      </button>
-
+      <button onclick="openNames()">✏️ Device Names & Icons</button>
+      <button onclick="openDefaults()">🕐 Default Schedules</button>
+      <button onclick="wifiSettings()">📶 Wi-Fi Settings</button>
     </div>
-
   </div>
 
-
   <div class="panel">
-
-    <h3>
-      🛡️ System Status
-    </h3>
-
-    <div
-      id="systemStatus"
-      style="color:#08b95c">
-
-      ● Checking system...
-
-    </div>
-
+    <h3>🛡️ System Status</h3>
+    <div id="systemStatus" style="color:#08b95c">● Checking system...</div>
   </div>
 
 </section>
 
+<<<<<<< HEAD
 
 <!-- ========================================================
      POWER SETTINGS
@@ -2317,57 +2072,22 @@ body.dark .runtime {
      ACTIVITY LOG
      ======================================================== -->
 
+=======
+>>>>>>> origin/main
 <section class="log">
-
   <div class="log-head">
-
-    <h3>
-      📝 Activity Log
-    </h3>
-
-    <button
-      class="clear"
-      onclick="clearLogs()">
-
-      Clear
-
-    </button>
-
+    <h3>📝 Activity Log</h3>
+    <button class="clear" onclick="clearLogs()">Clear</button>
   </div>
-
-  <div
-    class="log-content"
-    id="logs">
-
-    Loading...
-
-  </div>
-
+  <div class="log-content" id="logs">Loading...</div>
 </section>
 
-
-<!-- ========================================================
-     FOOTER
-     ======================================================== -->
-
 <footer class="footer">
-
-  <div>
-    🐠 Aquarium Controller v2.0.1
-  </div>
-
-  <div id="footerConnection">
-    ESP32
-  </div>
-
+  <div>🐠 Aquarium Controller v2.0.1</div>
+  <div id="footerConnection">ESP32</div>
 </footer>
 
 </div>
-
-
-<!-- ========================================================
-     SCHEDULE MODAL
-     ======================================================== -->
 
 <div class="modal" id="scheduleModal">
   <div class="modal-box">
@@ -2387,195 +2107,72 @@ body.dark .runtime {
   </div>
 </div>
 
-
-<!-- ========================================================
-     NAMES MODAL
-     ======================================================== -->
-
-<div
-  class="modal"
-  id="namesModal">
-
+<div class="modal" id="namesModal">
   <div class="modal-box">
-
-    <h2>
-      ✏️ Device Names & Icons
-    </h2>
-
+    <h2>✏️ Device Names & Icons</h2>
     <div id="nameFields"></div>
-
     <div class="modal-actions">
-
-      <button
-        class="cancel"
-        onclick="closeModal('namesModal')">
-
-        Close
-
-      </button>
-
+      <button class="cancel" onclick="closeModal('namesModal')">Close</button>
     </div>
-
   </div>
-
 </div>
 
-
-<!-- ========================================================
-     WIFI MODAL
-     ======================================================== -->
-
-<div
-  class="modal"
-  id="wifiModal">
-
+<div class="modal" id="wifiModal">
   <div class="modal-box">
-
-    <h2>
-      📶 Wi-Fi Settings
-    </h2>
-
-    <p
-      style="color:var(--muted);font-size:13px">
-
-      Update your Wi-Fi without re-uploading
-      the ESP32 code.
-
-    </p>
-
-
+    <h2>📶 Wi-Fi Settings</h2>
+    <p style="color:var(--muted);font-size:13px">Update your Wi-Fi without re-uploading the ESP32 code.</p>
     <div class="form-group">
-
-      <label>
-        Wi-Fi Name (SSID)
-      </label>
-
-      <input
-        id="wifiSSID"
-        autocomplete="off">
-
+      <label>Wi-Fi Name (SSID)</label>
+      <input id="wifiSSID" autocomplete="off">
     </div>
-
-
     <div class="form-group">
-
-      <label>
-        Wi-Fi Password
-      </label>
-
-      <input
-        type="password"
-        id="wifiPassword"
-        autocomplete="off">
-
+      <label>Wi-Fi Password</label>
+      <input type="password" id="wifiPassword" autocomplete="off">
     </div>
-
-
     <div class="modal-actions">
-
-      <button
-        class="cancel"
-        onclick="closeModal('wifiModal')">
-
-        Cancel
-
-      </button>
-
-      <button
-        class="save"
-        onclick="saveWiFi()">
-
-        💾 Save Wi-Fi Settings
-
-      </button>
-
+      <button class="cancel" onclick="closeModal('wifiModal')">Cancel</button>
+      <button class="save" onclick="saveWiFi()">💾 Save Wi-Fi Settings</button>
     </div>
-
   </div>
-
 </div>
-
 
 <script>
 
 let DATA = null;
 
-const DAYS = [
-  "M",
-  "T",
-  "W",
-  "T",
-  "F",
-  "S",
-  "S"
-];
+const DAYS = ["M","T","W","T","F","S","S"];
 
 let selectedDays = 127;
-
-
-// ==========================================================
-// ELEMENT
-// ==========================================================
 
 function $(id) {
   return document.getElementById(id);
 }
 
-
-// ==========================================================
-// LOAD STATUS
-// ==========================================================
-
 function loadStatus() {
 
   fetch("/api/status")
-
   .then(response => response.json())
-
   .then(data => {
-
     DATA = data;
-
     render();
-
   })
-
   .catch(() => {
-
-    $("connection").textContent =
-      "Disconnected";
-
-    $("systemStatus").innerHTML =
-      "<span style='color:#f23845'>● ESP32 disconnected</span>";
-
+    $("connection").textContent = "Disconnected";
+    $("systemStatus").innerHTML = "<span style='color:#f23845'>● ESP32 disconnected</span>";
   });
-
 
   fetch("/api/logs")
-
   .then(response => response.json())
-
   .then(data => {
-
     if (!data.logs.length) {
-
-      $("logs").innerHTML =
-        "No activity yet.";
-
+      $("logs").innerHTML = "No activity yet.";
       return;
     }
-
-    $("logs").innerHTML =
-      data.logs
-      .slice()
-      .reverse()
-      .map(x => escapeHtml(x))
-      .join("<br>");
-
+    $("logs").innerHTML = data.logs.slice().reverse().map(x => escapeHtml(x)).join("<br>");
   });
-
 }
 
+<<<<<<< HEAD
 
 // ==========================================================
 // POWER / DASHBOARD HELPERS
@@ -2688,808 +2285,395 @@ function getNextSchedule() {
 // RENDER
 // ==========================================================
 
+=======
+>>>>>>> origin/main
 function render() {
 
   if (!DATA) return;
 
-
-  $("connection").textContent =
-    DATA.wifi
-      ? "Connected"
-      : "Disconnected";
-
-
-  $("ip").textContent =
-    DATA.ip;
-
-
-  $("footerConnection").textContent =
-    "ESP32 " +
-    (DATA.wifi ? "Connected" : "Disconnected") +
-    " | " +
-    DATA.ip;
-
+  $("connection").textContent = DATA.wifi ? "Connected" : "Disconnected";
+  $("ip").textContent = DATA.ip;
+  $("footerConnection").textContent = "ESP32 " + (DATA.wifi ? "Connected" : "Disconnected") + " | " + DATA.ip;
 
   let anyEmergency = DATA.relays.some(r => r.emergency);
   $("systemStatus").innerHTML = DATA.wifi
     ? (anyEmergency
-        ? "<b style='color:#f23845'>● Emergency OFF active</b><br>" +
-          "One or more relays are isolated from schedules. <button onclick=\"resumeAll()\">Resume AUTO</button>"
-        : "<b style='color:#08b95c'>● All systems normal</b><br>" +
-          "4 devices configured • Wi-Fi connected • Schedules active")
+        ? "<b style='color:#f23845'>● Emergency OFF active</b><br>One or more relays are isolated from schedules. <button onclick=\"resumeAll()\">Resume AUTO</button>"
+        : "<b style='color:#08b95c'>● All systems normal</b><br>4 devices configured • Wi-Fi connected • Schedules active")
     : "<b style='color:#f23845'>● Wi-Fi disconnected</b>";
-
 
   let html = "";
 
-
   DATA.relays.forEach((relay, index) => {
 
-    let runtime =
-      formatRuntime(relay.runtime);
-
-
-    let progress = Math.min(
-      100,
-      (relay.runtime / 21600000) * 100
-    );
-
-
+    let runtime = formatRuntime(relay.runtime);
+    let progress = Math.min(100, (relay.runtime / 21600000) * 100);
     let activeSchedules = relay.schedules.filter(s => s.enabled);
     let scheduleText = relay.mode === "AUTO"
       ? (activeSchedules.length ? activeSchedules.map(s => minutesToTime(s.start) + " → " + minutesToTime(s.stop)).join(" • ") : "No schedules")
       : "Manual control";
     let nextText = relay.emergency ? "🚨 Emergency OFF" : (relay.manualOverride ? "Manual override" : "");
 
-
     let daysHTML = "";
-
-
     for (let d = 0; d < 7; d++) {
-
       let dayMask = relay.schedules.length ? relay.schedules[0].days : 127;
       daysHTML += `<button class='day ${dayMask & (1 << d) ? "active" : ""}' onclick='toggleDay(${relay.id},${d})'>${DAYS[d]}</button>`;
     }
 
-
     html += `
-
       <article class="relay">
-
         <div class="relay-head">
-
-          <div class="device-icon">
-            ${escapeHtml(relay.icon)}
-          </div>
-
+          <div class="device-icon">${escapeHtml(relay.icon)}</div>
           <div class="device-title">
-
-            <h2>
-              ${escapeHtml(relay.name)}
-            </h2>
-
-            <p>
-              Relay ${relay.id}
-              •
-              ${relay.mode} mode
-            </p>
-
+            <h2>${escapeHtml(relay.name)}</h2>
+            <p>Relay ${relay.id} • ${relay.mode} mode</p>
           </div>
-
-          <div
-
-            class="switch ${relay.state ? "on" : ""}"
-
-            onclick="toggleRelay(
-              ${relay.id},
-              ${relay.state ? "off" : "on"}
-            )">
-
-          </div>
-
+          <div class="switch ${relay.state ? "on" : ""}" onclick="toggleRelay(${relay.id},${relay.state ? "off" : "on"})"></div>
         </div>
-
-
-        <div
-
-          class="status ${relay.state ? "on" : "off"}">
-
-          ${relay.state ? "● ON" : "● OFF"}
-          •
-          Today ${runtime}
-
-        </div>
-
-
+        <div class="status ${relay.state ? "on" : "off"}">${relay.state ? "● ON" : "● OFF"} • Today ${runtime}</div>
         <div class="runtime">
-
-          <span class="schedule-text">
-            ${scheduleText}
-          </span>
-
-          <span class="next-action">
-            ${nextText}
-          </span>
-
+          <span class="schedule-text">${scheduleText}</span>
+          <span class="next-action">${nextText}</span>
         </div>
-
-
-        <div class="progress">
-
-          <span
-            style="width:${progress}%">
-          </span>
-
-        </div>
-
-
-        <div class="days">
-
-          ${daysHTML}
-
-        </div>
-
-
+        <div class="progress"><span style="width:${progress}%"></span></div>
+        <div class="days">${daysHTML}</div>
         <div class="actions">
-
-          <button
-
-            class="btn btn-on"
-
-            onclick="toggleRelay(
-              ${relay.id},
-              'on'
-            )">
-
-            ▶ On
-
-          </button>
-
-
-          <button
-
-            class="btn btn-off"
-
-            onclick="toggleRelay(
-              ${relay.id},
-              'off'
-            )">
-
-            ■ Off
-
-          </button>
-
-
-          <button
-
-            class="btn btn-schedule"
-
-            onclick="openSchedule(
-              ${relay.id}
-            )">
-
-            📅 Schedule
-
-          </button>
-
+          <button class="btn btn-on" onclick="toggleRelay(${relay.id},'on')">▶ On</button>
+          <button class="btn btn-off" onclick="toggleRelay(${relay.id},'off')">■ Off</button>
+          <button class="btn btn-schedule" onclick="openSchedule(${relay.id})">📅 Schedule</button>
           ${relay.emergency ? `<button class="btn btn-off" onclick="resumeRelay(${relay.id})">▶ Resume AUTO</button>` : `<button class="btn" style="border:1px solid #ff8a8a" onclick="emergencyOff(${relay.id})">🚨 Emergency OFF</button>`}
-
         </div>
-
-      </article>
-
-    `;
-
+      </article>`;
   });
 
-
   $("relayGrid").innerHTML = html;
-  renderDashboard();
+  updateMonitoringSummary();
 }
 
+function updateMonitoringSummary() {
 
-// ==========================================================
-// FORMAT RUNTIME
-// ==========================================================
+  if (!DATA || !DATA.relays) return;
+
+  let active = DATA.relays.filter(r => r.state).length;
+  let totalRuntime = DATA.relays.reduce((sum, r) => sum + (Number(r.runtime) || 0), 0);
+  let enabledSchedules = DATA.relays.reduce((sum, r) => sum + r.schedules.filter(s => s.enabled).length, 0);
+
+  $("metricActive").textContent = active + " / " + DATA.relays.length;
+  $("metricActiveSub").textContent = active === 0 ? "All relays OFF" : active === 1 ? "1 relay currently ON" : active + " relays currently ON";
+  $("metricRuntime").textContent = formatRuntime(totalRuntime);
+  $("metricRuntimeSub").textContent = "Combined runtime today";
+  $("metricSchedules").textContent = enabledSchedules;
+  $("metricSchedulesSub").textContent = enabledSchedules === 1 ? "1 enabled schedule" : enabledSchedules + " enabled schedules";
+
+  let next = getNextScheduledEvent();
+  $("metricNext").textContent = next ? next.time : "--";
+  $("metricNextSub").textContent = next ? next.label : "No upcoming schedule";
+}
+
+function getNextScheduledEvent() {
+
+  if (!DATA || !DATA.relays) return null;
+
+  let now = new Date();
+  let currentDay = (now.getDay() + 6) % 7;
+  let currentMinutes = now.getHours() * 60 + now.getMinutes();
+  let candidates = [];
+
+  DATA.relays.forEach(relay => {
+    if (relay.mode !== "AUTO" || relay.emergency) return;
+
+    relay.schedules.forEach(slot => {
+      if (!slot.enabled || slot.start === slot.stop) return;
+
+      for (let offset = 0; offset < 7; offset++) {
+        let day = (currentDay + offset) % 7;
+        if (!(slot.days & (1 << day))) continue;
+
+        let minutes = slot.start;
+        if (offset === 0 && minutes <= currentMinutes) continue;
+
+        candidates.push({offset: offset, minutes: minutes, relay: relay.name});
+      }
+    });
+  });
+
+  if (!candidates.length) return null;
+
+  candidates.sort((a, b) => {
+    let aKey = a.offset * 1440 + a.minutes;
+    let bKey = b.offset * 1440 + b.minutes;
+    return aKey - bKey;
+  });
+
+  let next = candidates[0];
+  return {time: minutesToTime(next.minutes), label: next.relay + " • " + DAYS[next.offset]};
+}
 
 function formatRuntime(ms) {
-
-  let minutes =
-    Math.floor(ms / 60000);
-
-  let hours =
-    Math.floor(minutes / 60);
-
-  minutes =
-    minutes % 60;
-
-
-  if (hours > 0) {
-
-    return (
-      hours +
-      "h " +
-      minutes +
-      "m"
-    );
-
-  }
-
+  let minutes = Math.floor(ms / 60000);
+  let hours = Math.floor(minutes / 60);
+  minutes = minutes % 60;
+  if (hours > 0) return hours + "h " + minutes + "m";
   return minutes + "m";
 }
 
+function minutesToTime(minutes) {
+  let hour = Math.floor(minutes / 60);
+  let minute = minutes % 60;
+  let suffix = hour >= 12 ? "PM" : "AM";
+  let displayHour = hour % 12 || 12;
+  return String(displayHour).padStart(2,"0") + ":" + String(minute).padStart(2,"0") + " " + suffix;
+}
 
-// ==========================================================
-// TOGGLE RELAY
-// ==========================================================
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/\"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
 
 function toggleRelay(id, action) {
-  fetch("/api/relay?id=" + id + "&action=" + action)
-    .then(async response => {
-      if (response.ok) return;
-      let msg = await response.text();
-      if (response.status === 409 && confirm(msg + "\n\nDo you want to use Emergency OFF?")) {
-        return fetch("/api/relay?id=" + id + "&action=emergency");
-      }
-      throw new Error(msg);
-    })
+  fetch("/api/relay", {method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded"}, body:"id=" + id + "&action=" + action})
+    .then(async r => { if (!r.ok) throw new Error(await r.text()); return r.text(); })
     .then(loadStatus)
-    .catch(e => alert(e.message || "Unable to control relay."));
+    .catch(e => alert(e.message || "Unable to change relay state."));
+}
+
+function allOff() {
+  if (!confirm("Turn all relays OFF?")) return;
+  fetch("/api/alloff", {method:"POST"}).then(loadStatus).catch(() => alert("Unable to turn relays off."));
 }
 
 function emergencyOff(id) {
   if (!confirm("Emergency OFF will force this relay OFF and ignore all schedules until you resume AUTO. Continue?")) return;
-  fetch("/api/relay?id=" + id + "&action=emergency").then(loadStatus);
+  let params = new URLSearchParams(); params.append("id", id);
+  fetch("/api/emergency", {method:"POST", body:params}).then(loadStatus).catch(e => alert(e.message || "Unable to activate Emergency OFF."));
 }
 
 function resumeRelay(id) {
-  fetch("/api/relay?id=" + id + "&action=resume").then(loadStatus);
-}
-
-// ==========================================================
-// ALL OFF
-// ==========================================================
-
-function allOff() {
-  if (!confirm("Emergency OFF will force all four relays OFF and ignore schedules until you resume AUTO. Continue?")) return;
-  fetch("/api/alloff").then(loadStatus);
+  let params = new URLSearchParams(); params.append("id", id);
+  fetch("/api/resume", {method:"POST", body:params}).then(loadStatus).catch(e => alert(e.message || "Unable to resume relay."));
 }
 
 function resumeAll() {
-  fetch("/api/resumeall").then(loadStatus);
+  fetch("/api/resumeall", {method:"POST"}).then(loadStatus).catch(e => alert(e.message || "Unable to resume AUTO."));
 }
 
-
-// ==========================================================
-// SCHEDULE
-// ==========================================================
-
 function openSchedule(id) {
-  let relay = DATA.relays.find(r => r.id == id);
+  if (!DATA) return;
+  let relay = DATA.relays.find(r => r.id === id);
   if (!relay) return;
   $("scheduleId").value = id;
   $("scheduleTitle").textContent = "📅 " + relay.name + " Schedules";
   $("scheduleMode").value = relay.mode;
+
   let html = "";
   relay.schedules.forEach((slot, i) => {
-    let days = "";
-    for (let d = 0; d < 7; d++) {
-      days += `<button class="day ${slot.days & (1 << d) ? "active" : ""}" onclick="toggleModalDay(${id},${i},${d})">${DAYS[d]}</button>`;
-    }
+    let dayButtons = "";
+    for (let d = 0; d < 7; d++) dayButtons += `<button type="button" class="${slot.days & (1 << d) ? "active" : ""}" onclick="toggleScheduleDay(${i},${d})">${DAYS[d]}</button>`;
     html += `<div class="schedule-editor">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-        <b>Schedule ${i + 1}</b>
-        <label><input type="checkbox" id="en_${i}" ${slot.enabled ? "checked" : ""}> Enabled</label>
-      </div>
-      <div class="form-group"><label>Start Time</label><input type="time" id="st_${i}" value="${minutesToTime(slot.start)}"></div>
-      <div class="form-group"><label>Stop Time</label><input type="time" id="sp_${i}" value="${minutesToTime(slot.stop)}"></div>
-      <div class="form-group"><label>Active Days</label><div class="week-select" id="wd_${i}">${days}</div></div>
-      <button class="save" style="width:100%;padding:9px;border:0;border-radius:8px" onclick="saveSchedule(${id},${i})">💾 Save Schedule ${i + 1}</button>
+      <div class="schedule-editor-head"><b>Schedule ${i + 1}</b><label><input type="checkbox" id="schedEnabled${i}" ${slot.enabled ? "checked" : ""}> Enabled</label></div>
+      <div class="schedule-editor-grid"><div><label>Start</label><input type="time" id="schedStart${i}" value="${timeInput(slot.start)}"></div><div><label>Stop</label><input type="time" id="schedStop${i}" value="${timeInput(slot.stop)}"></div></div>
+      <div class="schedule-editor-days" id="schedDays${i}">${dayButtons}</div>
     </div>`;
   });
   $("scheduleList").innerHTML = html;
   $("scheduleModal").classList.add("show");
 }
 
-function minutesToTime(minutes) {
-  let h = Math.floor(minutes / 60), m = minutes % 60;
+function toggleScheduleDay(slotId, day) {
+  let buttons = $("schedDays" + slotId).querySelectorAll("button");
+  if (!buttons[day]) return;
+  buttons[day].classList.toggle("active");
+}
+
+function timeInput(minutes) {
+  let h = Math.floor(minutes / 60); let m = minutes % 60;
   return String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
 }
 
-function timeToMinutes(value) {
-  let parts = value.split(":");
-  return parseInt(parts[0]) * 60 + parseInt(parts[1]);
-}
-
-function toggleModalDay(id, slotId, day) {
-  let relay = DATA.relays.find(r => r.id == id);
-  relay.schedules[slotId].days ^= (1 << day);
-  openSchedule(id);
-}
-
-function saveSchedule(id, slotId) {
-  let relay = DATA.relays.find(r => r.id == id);
-  let slot = relay.schedules[slotId];
-  let enabled = $("en_" + slotId).checked;
-  let start = timeToMinutes($("st_" + slotId).value);
-  let stop = timeToMinutes($("sp_" + slotId).value);
-  if (enabled && (start === stop || slot.days === 0)) {
-    alert("Please select a valid start/stop time and at least one day.");
-    return;
-  }
-  let params = new URLSearchParams();
-  params.append("id", id); params.append("slot", slotId); params.append("enabled", enabled ? "1" : "0");
-  params.append("start", start); params.append("stop", stop); params.append("days", slot.days);
-  params.append("mode", $("scheduleMode").value);
-  fetch("/api/schedule", {method:"POST", body:params})
-    .then(async r => { if (!r.ok) throw new Error(await r.text()); return r.text(); })
-    .then(() => loadStatus())
-    .then(() => openSchedule(id))
-    .catch(e => alert(e.message || "Unable to save schedule."));
-}
-
-// ==========================================================
-// QUICK NAMES
-// ==========================================================
+function closeModal(id) { $(id).classList.remove("show"); }
 
 function openNames() {
-
+  if (!DATA) return;
   let html = "";
-
-
-  DATA.relays.forEach(relay => {
-
-    html += `
-
-      <div class="form-group">
-
-        <label>
-          Relay ${relay.id} Name
-        </label>
-
-        <input
-          id="name${relay.id}"
-          value="${escapeAttr(relay.name)}">
-
-      </div>
-
-
-      <div class="form-group">
-
-        <label>
-          Relay ${relay.id} Icon
-        </label>
-
-        <input
-          id="icon${relay.id}"
-          value="${escapeAttr(relay.icon)}">
-
-      </div>
-
-      <button
-        class="save"
-        style="width:100%;padding:10px;border:0;border-radius:8px"
-        onclick="saveDevice(${relay.id})">
-
-        💾 Save Relay ${relay.id}
-
-      </button>
-
-    `;
-
+  DATA.relays.forEach(r => {
+    html += `<div class="form-group"><label>Relay ${r.id} Name</label><input id="name${r.id}" value="${escapeHtml(r.name)}"><label>Icon</label><input id="icon${r.id}" value="${escapeHtml(r.icon)}"></div>`;
   });
-
-
-  $("nameFields").innerHTML =
-    html;
-
-
-  $("namesModal")
-    .classList
-    .add("show");
+  $("nameFields").innerHTML = html;
+  $("namesModal").classList.add("show");
 }
-
-
-// ==========================================================
-// SAVE DEVICE
-// ==========================================================
-
-function saveDevice(id) {
-
-  let name =
-    $("name" + id).value;
-
-
-  let icon =
-    $("icon" + id).value;
-
-
-  let params =
-    new URLSearchParams();
-
-
-  params.append(
-    "id",
-    id
-  );
-
-
-  params.append(
-    "name",
-    name
-  );
-
-
-  params.append(
-    "icon",
-    icon
-  );
-
-
-  fetch(
-    "/api/device",
-    {
-      method:"POST",
-      body:params
-    }
-  )
-
-  .then(() => {
-
-    loadStatus();
-
-  });
-}
-
-
-// ==========================================================
-// WIFI
-// ==========================================================
 
 function wifiSettings() {
-
   $("wifiSSID").value = "";
-
   $("wifiPassword").value = "";
-
-  $("wifiModal")
-    .classList
-    .add("show");
+  $("wifiModal").classList.add("show");
 }
-
-
-function saveWiFi() {
-
-  let ssid =
-    $("wifiSSID").value.trim();
-
-
-  let password =
-    $("wifiPassword").value;
-
-
-  if (!ssid) {
-
-    alert(
-      "Please enter Wi-Fi name."
-    );
-
-    return;
-  }
-
-
-  let params =
-    new URLSearchParams();
-
-
-  params.append(
-    "ssid",
-    ssid
-  );
-
-
-  params.append(
-    "password",
-    password
-  );
-
-
-  fetch(
-    "/api/wifi",
-    {
-      method:"POST",
-      body:params
-    }
-  )
-
-  .then(() => {
-
-    alert(
-      "Wi-Fi settings saved. ESP32 will restart."
-    );
-
-    closeModal(
-      "wifiModal"
-    );
-
-  });
-}
-
-
-// ==========================================================
-// DEFAULTS
-// ==========================================================
-
-function openDefaults() {
-
-  alert(
-    "Each relay supports up to 6 AUTO schedules. Use the Schedule button to configure them. MANUAL mode keeps direct control, while Emergency OFF overrides all schedules."
-  );
-}
-
-
-// ==========================================================
-// DAYS ON MAIN CARD
-// ==========================================================
-
-function toggleDay(id, day) {
-  let relay = DATA.relays.find(r => r.id == id);
-  if (!relay || !relay.schedules.length) return;
-  let slot = relay.schedules[0];
-  let newDays = slot.days ^ (1 << day);
-  let params = new URLSearchParams();
-  params.append("id", id); params.append("slot", 0); params.append("enabled", slot.enabled ? "1" : "0");
-  params.append("start", slot.start); params.append("stop", slot.stop); params.append("days", newDays); params.append("mode", relay.mode);
-  fetch("/api/schedule", {method:"POST", body:params}).then(loadStatus);
-}
-
-// ==========================================================
-// LOGS
-// ==========================================================
-
-function clearLogs() {
-
-  if (
-    !confirm(
-      "Clear activity log?"
-    )
-  ) {
-    return;
-  }
-
-
-  fetch(
-    "/api/logs/clear"
-  )
-
-  .then(loadStatus);
-}
-
-
-// ==========================================================
-// THEME
-// ==========================================================
 
 function toggleTheme() {
-
-  document.body
-    .classList
-    .toggle("dark");
-
-
-  localStorage.setItem(
-    "aquariumTheme",
-    document.body.classList.contains("dark")
-      ? "dark"
-      : "light"
-  );
+  document.body.classList.toggle("dark");
+  localStorage.setItem("theme", document.body.classList.contains("dark") ? "dark" : "light");
 }
 
-
-// ==========================================================
-// MODAL CLOSE
-// ==========================================================
-
-function closeModal(id) {
-
-  $(id)
-    .classList
-    .remove("show");
+function loadTheme() {
+  if (localStorage.getItem("theme") === "dark") document.body.classList.add("dark");
 }
 
-
-// ==========================================================
-// CLOCK
-// ==========================================================
-
-function updateClock() {
-
-  let now =
-    new Date();
-
-
-  $("clock").textContent =
-    now.toLocaleTimeString(
-      "en-IN",
-      {
-        hour12:true
-      }
-    );
-
-
-  $("date").textContent =
-    now.toLocaleDateString(
-      "en-IN",
-      {
-        weekday:"long",
-        day:"2-digit",
-        month:"short",
-        year:"numeric"
-      }
-    ) +
-    " • IST (UTC +5:30)";
+function clearLogs() {
+  if (!confirm("Clear activity log?")) return;
+  fetch("/api/logs/clear", {method:"POST"}).then(loadStatus).catch(() => alert("Unable to clear logs."));
 }
 
-
-// ==========================================================
-// ESCAPE
-// ==========================================================
-
-function escapeHtml(value) {
-
-  return String(value)
-
-    .replaceAll(
-      "&",
-      "&amp;"
-    )
-
-    .replaceAll(
-      "<",
-      "&lt;"
-    )
-
-    .replaceAll(
-      ">",
-      "&gt;"
-    )
-
-    .replaceAll(
-      '"',
-      "&quot;"
-    )
-
-    .replaceAll(
-      "'",
-      "&#039;"
-    );
+function tickClock() {
+  let now = new Date();
+  $("clock").textContent = now.toLocaleTimeString();
+  $("date").textContent = now.toLocaleDateString(undefined, {weekday:"short", year:"numeric", month:"short", day:"numeric"});
 }
 
-
-function escapeAttr(value) {
-
-  return escapeHtml(value);
+function saveWiFi() {
+  let ssid = $("wifiSSID").value.trim();
+  let password = $("wifiPassword").value;
+  if (!ssid) { alert("SSID cannot be empty."); return; }
+  let params = new URLSearchParams(); params.append("ssid", ssid); params.append("password", password);
+  fetch("/api/wifi", {method:"POST", body:params}).then(async r => { if (!r.ok) throw new Error(await r.text()); return r.text(); }).then(() => { closeModal("wifiModal"); alert("Wi-Fi settings saved. The ESP32 will reconnect using the new settings."); loadStatus(); }).catch(e => alert(e.message || "Unable to save Wi-Fi settings."));
 }
 
-
-// ==========================================================
-// INITIALIZATION
-// ==========================================================
-
-if (
-  localStorage.getItem(
-    "aquariumTheme"
-  ) === "dark"
-) {
-
-  document.body
-    .classList
-    .add("dark");
+function openDefaults() {
+  if (!DATA) return;
+  alert("Each relay supports up to 6 AUTO schedules. Use the Schedule button to configure them. MANUAL mode keeps direct control, while Emergency OFF overrides all schedules.");
 }
 
+function toggleDay(id, day) {
+  let relay = DATA.relays.find(r => r.id === id);
+  if (!relay || !relay.schedules.length) return;
+  let slot = relay.schedules[0];
+  slot.days ^= (1 << day);
+  let params = new URLSearchParams();
+  params.append("id", id); params.append("slot", 0); params.append("enabled", slot.enabled ? "1" : "0"); params.append("start", slot.start); params.append("stop", slot.stop); params.append("days", slot.days); params.append("mode", relay.mode);
+  fetch("/api/schedule", {method:"POST", body:params}).then(loadStatus).catch(e => alert(e.message || "Unable to update schedule."));
+}
 
-updateClock();
+function saveSchedule() {
+  let id = Number($("scheduleId").value);
+  let relay = DATA.relays.find(r => r.id === id);
+  if (!relay) return;
+  let requests = [];
+  for (let i = 0; i < relay.schedules.length; i++) {
+    let start = $("schedStart" + i); let stop = $("schedStop" + i); let enabled = $("schedEnabled" + i);
+    if (!start || !stop || !enabled) continue;
+    let days = 0; let buttons = $("schedDays" + i).querySelectorAll("button");
+    buttons.forEach((b,d) => { if (b.classList.contains("active")) days |= (1 << d); });
+    let params = new URLSearchParams(); params.append("id", id); params.append("slot", i); params.append("enabled", enabled.checked ? "1" : "0"); params.append("start", timeToMinutes(start.value)); params.append("stop", timeToMinutes(stop.value)); params.append("days", days); params.append("mode", $("scheduleMode").value);
+    requests.push(fetch("/api/schedule", {method:"POST", body:params}).then(async r => { if (!r.ok) throw new Error(await r.text()); }));
+  }
+  Promise.all(requests).then(() => { closeModal("scheduleModal"); loadStatus(); }).catch(e => alert(e.message || "Unable to save schedules."));
+}
 
-setInterval(
-  updateClock,
-  1000
-);
+function timeToMinutes(value) { let parts = value.split(":"); return Number(parts[0]) * 60 + Number(parts[1]); }
 
-
-loadPowerSettings();
+loadTheme();
+tickClock();
+setInterval(tickClock,1000);
 loadStatus();
-
-setInterval(
-  loadStatus,
-  5000
-);
+setInterval(loadStatus,10000);
 
 </script>
 
 </body>
-
 </html>
 
 )rawliteral";
 
 // ============================================================
-// API: STATUS
+// API HANDLERS
 // ============================================================
 
-void handleStatus() {
-
-  server.send(
-    200,
-    "application/json",
-    buildStatusJSON()
-  );
+void handleRoot() {
+  server.send_P(200, "text/html", INDEX_HTML);
 }
 
-// ============================================================
-// API: RELAY
-// ============================================================
+void handleStatus() {
+  server.send(200, "application/json", buildStatusJSON());
+}
+
+void handleLogs() {
+  String json = "{\"logs\":[";
+  for (int i = 0; i < logCount; i++) {
+    if (i > 0) json += ",";
+    json += "\"" + jsonEscape(activityLogs[i]) + "\"";
+  }
+  json += "]}";
+  server.send(200, "application/json", json);
+}
+
+void handleClearLogs() {
+  logCount = 0;
+  server.send(200, "text/plain", "OK");
+}
 
 void handleRelay() {
-  if (!server.hasArg("id") || !server.hasArg("action")) { server.send(400, "text/plain", "Missing parameters"); return; }
+  if (!server.hasArg("id") || !server.hasArg("action")) {
+    server.send(400, "text/plain", "Missing id/action");
+    return;
+  }
+
   int id = server.arg("id").toInt() - 1;
   String action = server.arg("action");
-  if (id < 0 || id >= RELAY_COUNT) { server.send(400, "text/plain", "Invalid relay"); return; }
+
+  if (id < 0 || id >= RELAY_COUNT) {
+    server.send(400, "text/plain", "Invalid relay");
+    return;
+  }
 
   RelayConfig &r = relays[id];
-  bool scheduledNow = r.autoMode && isAnyScheduleActive(id);
 
-  if (r.emergencyOff && action != "resume") {
+  if (r.emergencyOff) {
     server.send(409, "text/plain", "Emergency OFF is active. Resume AUTO first.");
     return;
   }
 
-  if (action == "on" || action == "off") {
-    if (r.autoMode && scheduledNow) {
-      server.send(409, "text/plain", "An AUTO schedule is active. Use Emergency OFF to force OFF.");
-      return;
-    }
-    r.manualOverride = r.autoMode;
-    setRelayState(id, action == "on", "Manual");
-    server.send(200, "text/plain", "OK");
+  bool on = action == "on";
+  bool scheduledNow = r.autoMode && isAnyScheduleActive(id);
+
+  if (!on && r.autoMode && scheduledNow) {
+    server.send(409, "text/plain", "An AUTO schedule is active. Use Emergency OFF to force OFF.");
     return;
   }
 
-  if (action == "resume") {
-    r.emergencyOff = false;
-    r.manualOverride = false;
-    saveRelaySettings(id);
-    if (r.autoMode) {
-      bool shouldOn = isAnyScheduleActive(id);
-      setRelayState(id, shouldOn, "AUTO Resume");
-    }
-    addLog(r.name + " AUTO resumed");
-    server.send(200, "text/plain", "OK");
-    return;
-  }
-
-  if (action == "emergency") {
-    r.emergencyOff = true;
-    r.manualOverride = false;
-    setRelayState(id, false, "Emergency OFF");
-    saveRelaySettings(id);
-    server.send(200, "text/plain", "OK");
-    return;
-  }
-
-  server.send(400, "text/plain", "Invalid action");
+  r.manualOverride = r.autoMode && !scheduledNow;
+  setRelayState(id, on, "Manual");
+  server.send(200, "text/plain", "OK");
 }
-
-// ============================================================
-// API: ALL OFF
-// ============================================================
 
 void handleAllOff() {
   for (int i = 0; i < RELAY_COUNT; i++) {
-    relays[i].emergencyOff = true;
-    relays[i].manualOverride = false;
-    setRelayState(i, false, "Emergency All OFF");
-    saveRelaySettings(i);
+    relays[i].manualOverride = true;
+    if (!relays[i].emergencyOff) setRelayState(i, false, "All OFF");
   }
+  server.send(200, "text/plain", "OK");
+}
+
+void handleEmergency() {
+  if (!server.hasArg("id")) { server.send(400, "text/plain", "Missing id"); return; }
+  int id = server.arg("id").toInt() - 1;
+  if (id < 0 || id >= RELAY_COUNT) { server.send(400, "text/plain", "Invalid relay"); return; }
+  relays[id].emergencyOff = true;
+  relays[id].manualOverride = false;
+  setRelayState(id, false, "Emergency OFF");
+  saveRelaySettings(id);
+  server.send(200, "text/plain", "OK");
+}
+
+void handleResume() {
+  if (!server.hasArg("id")) { server.send(400, "text/plain", "Missing id"); return; }
+  int id = server.arg("id").toInt() - 1;
+  if (id < 0 || id >= RELAY_COUNT) { server.send(400, "text/plain", "Invalid relay"); return; }
+  relays[id].emergencyOff = false;
+  relays[id].manualOverride = false;
+  saveRelaySettings(id);
+  setRelayState(id, isAnyScheduleActive(id), "Resume AUTO");
   server.send(200, "text/plain", "OK");
 }
 
@@ -3498,186 +2682,101 @@ void handleResumeAll() {
     relays[i].emergencyOff = false;
     relays[i].manualOverride = false;
     saveRelaySettings(i);
-    if (relays[i].autoMode) {
-      setRelayState(i, isAnyScheduleActive(i), "AUTO Resume");
-    }
+    setRelayState(i, isAnyScheduleActive(i), "Resume AUTO");
   }
-  addLog("All relays AUTO resumed");
   server.send(200, "text/plain", "OK");
 }
 
-// ============================================================
-// API: SCHEDULE
-// ============================================================
-
 void handleSchedule() {
-  if (!server.hasArg("id") || !server.hasArg("slot") || !server.hasArg("enabled") ||
-      !server.hasArg("start") || !server.hasArg("stop") || !server.hasArg("days")) {
-    server.send(400, "text/plain", "Missing parameters"); return;
+  if (!server.hasArg("id") || !server.hasArg("slot") || !server.hasArg("enabled") || !server.hasArg("start") || !server.hasArg("stop") || !server.hasArg("days") || !server.hasArg("mode")) {
+    server.send(400, "text/plain", "Missing schedule arguments"); return;
   }
+
   int id = server.arg("id").toInt() - 1;
   int slotId = server.arg("slot").toInt();
   if (id < 0 || id >= RELAY_COUNT || slotId < 0 || slotId >= MAX_SCHEDULES) {
     server.send(400, "text/plain", "Invalid relay or schedule slot"); return;
   }
+
   RelayConfig &r = relays[id];
   ScheduleSlot &slot = r.schedules[slotId];
-  uint16_t start = (uint16_t)server.arg("start").toInt();
-  uint16_t stop = (uint16_t)server.arg("stop").toInt();
-  uint8_t days = (uint8_t)server.arg("days").toInt();
-  bool enabled = server.arg("enabled") == "1";
-  if (enabled && (start == stop || days == 0)) {
+  slot.enabled = server.arg("enabled").toInt() != 0;
+  slot.startMinutes = server.arg("start").toInt();
+  slot.stopMinutes = server.arg("stop").toInt();
+  slot.days = server.arg("days").toInt();
+  r.autoMode = server.arg("mode") == "AUTO";
+  r.manualOverride = false;
+
+  if (slot.enabled && (slot.startMinutes == slot.stopMinutes || slot.days == 0)) {
     server.send(400, "text/plain", "Enabled schedule needs different start/stop times and at least one day"); return;
   }
-  slot.enabled = enabled; slot.startMinutes = start; slot.stopMinutes = stop; slot.days = days;
-  if (server.hasArg("mode")) r.autoMode = server.arg("mode") == "AUTO";
-  r.manualOverride = false;
+
   saveRelaySettings(id);
   addLog(r.name + " schedule " + String(slotId + 1) + " updated");
   server.send(200, "text/plain", "OK");
 }
 
-// ============================================================
-// API: DEVICE
-// ============================================================
-
-void handleDevice() {
-
-  if (
-    !server.hasArg("id") ||
-    !server.hasArg("name") ||
-    !server.hasArg("icon")
-  ) {
-
-    server.send(
-      400,
-      "text/plain",
-      "Missing parameters"
-    );
-
-    return;
+void handleNames() {
+  for (int i = 0; i < RELAY_COUNT; i++) {
+    String nameKey = "name" + String(i + 1);
+    String iconKey = "icon" + String(i + 1);
+    if (server.hasArg(nameKey)) relays[i].name = urlDecode(server.arg(nameKey));
+    if (server.hasArg(iconKey)) relays[i].icon = urlDecode(server.arg(iconKey));
+    saveRelaySettings(i);
   }
-
-  int id =
-    server.arg("id").toInt() - 1;
-
-  if (
-    id < 0 ||
-    id >= RELAY_COUNT
-  ) {
-
-    server.send(
-      400,
-      "text/plain",
-      "Invalid relay"
-    );
-
-    return;
-  }
-
-  relays[id].name =
-    urlDecode(
-      server.arg("name")
-    );
-
-  relays[id].icon =
-    urlDecode(
-      server.arg("icon")
-    );
-
-  saveRelaySettings(id);
-
-  addLog(
-    "Relay " +
-    String(id + 1) +
-    " name/icon updated"
-  );
-
-  server.send(
-    200,
-    "text/plain",
-    "OK"
-  );
+  server.send(200, "text/plain", "OK");
 }
-
-// ============================================================
-// API: WIFI
-// ============================================================
 
 void handleWiFi() {
-
-  if (
-    !server.hasArg("ssid") ||
-    !server.hasArg("password")
-  ) {
-
-    server.send(
-      400,
-      "text/plain",
-      "Missing Wi-Fi parameters"
-    );
-
-    return;
+  if (!server.hasArg("ssid") || !server.hasArg("password")) {
+    server.send(400, "text/plain", "Missing Wi-Fi settings"); return;
   }
 
-  String newSSID =
-    urlDecode(
-      server.arg("ssid")
-    );
-
-  String newPassword =
-    urlDecode(
-      server.arg("password")
-    );
+  String newSSID = urlDecode(server.arg("ssid"));
+  String newPassword = server.arg("password");
 
   if (newSSID.length() == 0) {
-
-    server.send(
-      400,
-      "text/plain",
-      "SSID cannot be empty"
-    );
-
-    return;
+    server.send(400, "text/plain", "SSID cannot be empty"); return;
   }
 
-  prefs.putString(
-    "ssid",
-    newSSID
-  );
+  prefs.putString("ssid", newSSID);
+  prefs.putString("pass", newPassword);
 
-  prefs.putString(
-    "pass",
-    newPassword
-  );
+  wifiSSID = newSSID;
+  wifiPassword = newPassword;
 
-  server.send(
-    200,
-    "text/plain",
-    "Wi-Fi saved. Restarting..."
-  );
+  server.send(200, "text/plain", "Wi-Fi settings saved. Reconnecting...");
 
-  delay(1000);
-
-  ESP.restart();
+  delay(300);
+  WiFi.disconnect(true);
+  delay(300);
+  connectWiFi();
 }
 
 // ============================================================
-// API: LOGS
+// OTA
 // ============================================================
 
-void handleLogs() {
+void setupOTA() {
+  ArduinoOTA.setHostname("ESP32-Smart-Relay-Controller");
 
-  String json =
-    "{\"logs\":[";
+  ArduinoOTA.onStart([]() {
+    Serial.println("OTA Start");
+  });
 
+  ArduinoOTA.onEnd([]() {
+    Serial.println("OTA End");
+  });
 
-  for (int i = 0; i < logCount; i++) {
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("OTA Progress: %u%%\r", (progress * 100) / total);
+  });
 
-    if (i > 0) {
-      json += ",";
-    }
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("OTA Error[%u]\n", error);
+  });
 
+<<<<<<< HEAD
     json += "\"";
 
     json +=
@@ -3742,6 +2841,9 @@ void handleReset() {
   delay(1000);
 
   ESP.restart();
+=======
+  ArduinoOTA.begin();
+>>>>>>> origin/main
 }
 
 // ============================================================
@@ -3749,59 +2851,19 @@ void handleReset() {
 // ============================================================
 
 void setup() {
-
   Serial.begin(115200);
-
   delay(500);
 
-  Serial.println();
-  Serial.println(
-    "========================================"
-  );
-
-  Serial.println(
-    "ESP32 Smart Relay Controller"
-  );
-
-  Serial.println(
-    "========================================"
-  );
-
-
-  // ----------------------------------------------------------
-  // Relay pins
-  // ----------------------------------------------------------
-
   for (int i = 0; i < RELAY_COUNT; i++) {
-
-    pinMode(
-      relayPins[i],
-      OUTPUT
-    );
-
-    // IMPORTANT:
-    // Active LOW relay = HIGH means OFF
-
-    digitalWrite(
-      relayPins[i],
-      RELAY_OFF
-    );
+    pinMode(relayPins[i], OUTPUT);
+    digitalWrite(relayPins[i], RELAY_OFF);
   }
 
-
-  // ----------------------------------------------------------
-  // Load settings
-  // ----------------------------------------------------------
-
   loadSettings();
-
-
-  // ----------------------------------------------------------
-  // Connect Wi-Fi
-  // ----------------------------------------------------------
-
   connectWiFi();
+  setupOTA();
 
+<<<<<<< HEAD
 
   // ----------------------------------------------------------
   // OTA
@@ -3909,26 +2971,24 @@ void setup() {
     handleReset
   );
 
+=======
+  server.on("/", HTTP_GET, handleRoot);
+  server.on("/api/status", HTTP_GET, handleStatus);
+  server.on("/api/logs", HTTP_GET, handleLogs);
+  server.on("/api/logs/clear", HTTP_POST, handleClearLogs);
+  server.on("/api/relay", HTTP_POST, handleRelay);
+  server.on("/api/alloff", HTTP_POST, handleAllOff);
+  server.on("/api/emergency", HTTP_POST, handleEmergency);
+  server.on("/api/resume", HTTP_POST, handleResume);
+  server.on("/api/resumeall", HTTP_POST, handleResumeAll);
+  server.on("/api/schedule", HTTP_POST, handleSchedule);
+  server.on("/api/names", HTTP_POST, handleNames);
+  server.on("/api/wifi", HTTP_POST, handleWiFi);
+>>>>>>> origin/main
 
   server.begin();
-
-
-  Serial.println(
-    "Web server started!"
-  );
-
-
-  Serial.println();
-
-  Serial.println(
-    "Open the IP address shown above in your browser."
-  );
-
-  Serial.println();
-
-  addLog(
-    "System started"
-  );
+  addLog("System started");
+  Serial.println("Web server started.");
 }
 
 // ============================================================
@@ -3939,5 +2999,4 @@ void loop() {
   server.handleClient();
   ArduinoOTA.handle();
   processSchedules();
-  delay(2);
 }
