@@ -2,6 +2,9 @@ name: Prepare 8ch Hardware Test Firmware
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feature/hardware-test-8ch-v2.0.1
 
 permissions:
   contents: write
