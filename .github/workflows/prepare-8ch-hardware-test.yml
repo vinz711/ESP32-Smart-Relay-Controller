@@ -6,14 +6,19 @@ on:
 permissions:
   contents: write
 
+env:
+  TEST_BRANCH: feature/hardware-test-8ch-v2.0.1
+
 jobs:
   prepare:
     runs-on: ubuntu-latest
 
     steps:
       - name: Clone repository
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git clone --no-tags --depth 1 --branch feature/hardware-test-8ch-v2.0.1 "https://github.com/${GITHUB_REPOSITORY}.git" repo
+          gh repo clone "${GITHUB_REPOSITORY}" repo -- --branch "$TEST_BRANCH" --single-branch
           cd repo
           git fetch --depth 1 origin tag v2.0.1
 
