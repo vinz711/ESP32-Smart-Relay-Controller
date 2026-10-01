@@ -41,16 +41,7 @@ jobs:
           mkdir -p /tmp/ESP32_Smart_Relay_Controller
           cp firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
           if [ "${GITHUB_REF_NAME}" = "feature/hardware-test-8ch-v2.0.1" ]; then
-            python3 - <<'PY'
-            from pathlib import Path
-            p = Path('/tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino')
-            s = p.read_text(encoding='utf-8')
-            old = '''const uint8_t relayPins[RELAY_COUNT] = {\n  5,\n  17,\n  16,\n  4\n};'''
-            new = '''const uint8_t relayPins[RELAY_COUNT] = {\n  19,\n  18,\n  5,\n  17\n};'''
-            if old not in s:
-              raise SystemExit('Expected v2.0.1 relay GPIO block not found; refusing hardware-test build.')
-            p.write_text(s.replace(old, new, 1), encoding='utf-8')
-            PY
+            python3 -c 'from pathlib import Path; p=Path("/tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino"); s=p.read_text(encoding="utf-8"); old="const uint8_t relayPins[RELAY_COUNT] = {\\n  5,\\n  17,\\n  16,\\n  4\\n};"; new="const uint8_t relayPins[RELAY_COUNT] = {\\n  19,\\n  18,\\n  5,\\n  17\\n};"; assert old in s, "Expected v2.0.1 relay GPIO block not found; refusing hardware-test build."; p.write_text(s.replace(old,new,1),encoding="utf-8")'
           fi
 
       - name: Validate hardware-test source
