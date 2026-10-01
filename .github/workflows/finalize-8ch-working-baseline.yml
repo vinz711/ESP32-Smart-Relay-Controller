@@ -1,0 +1,91 @@
+name: Finalize 8ch Working Baseline
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/hardware-test-8ch-v2.0.1
+          fetch-depth: 1
+
+      - name: Apply fixes from known-good 8-channel baseline
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino")
+          s = path.read_text(encoding="utf-8")
+
+          # 1) Prevent the browser from keeping an older inline dashboard.
+          root_pattern = re.compile(r'(server\.on\(\s*"/"\s*,\s*HTTP_GET\s*,\s*\[\]\(\)\s*\{\s*)server\.send_P\(\s*200\s*,\s*"text/html"\s*,\s*INDEX_HTML\s*\);', re.S)
+          root_replacement = r'\1server.sendHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");\n      server.sendHeader("Pragma", "no-cache");\n      server.send_P(200, "text/html; charset=utf-8", INDEX_HTML);'
+          s, n = root_pattern.subn(root_replacement, s, count=1)
+          if n != 1:
+              raise SystemExit("Could not patch root page cache headers")
+
+          # 2) Never cache the status JSON used by the live dashboard.
+          status_pattern = re.compile(r'(void handleStatus\(\)\s*\{\s*)server\.send\(\s*200\s*,\s*"application/json"\s*,\s*buildStatusJSON\(\)\s*\);', re.S)
+          status_replacement = r'\1server.sendHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");\n  server.send(200, "application/json", buildStatusJSON());'
+          s, n = status_pattern.subn(status_replacement, s, count=1)
+          if n != 1:
+              raise SystemExit("Could not patch status cache headers")
+
+          # 3) The known-good baseline marks the API connection as healthy after
+          # every successful status/power response. Preserve that state after
+          # saving power settings; otherwise render() interprets the replacement
+          # JSON object as disconnected because it has no client-side flag.
+          power_pattern = re.compile(r'(function savePowerSettings\(\)\s*\{.*?\.then\(data => \{\s*DATA = data;)(\s*render\(\);)', re.S)
+          power_replacement = r'\1\n    DATA.connected = true;\n    loadPowerSettings();\2'
+          s, n = power_pattern.subn(power_replacement, s, count=1)
+          if n != 1:
+              raise SystemExit("Could not patch power-save connection state")
+
+          # 4) Keep the emergency controls visibly active. The working 8ch
+          # baseline uses explicit emergency/resume button classes.
+          css_marker = '.btn-schedule {'
+          css_patch = '''.btn-emergency {\n  background:#fff5f5 !important;\n  color:#c92f3d !important;\n  border:1px solid #ff8a8a !important;\n  min-height:40px;\n  white-space:nowrap;\n  font-weight:700;\n  opacity:1 !important;\n  pointer-events:auto !important;\n}\n\n.btn-emergency:disabled {\n  background:#fff5f5 !important;\n  color:#c92f3d !important;\n  opacity:1 !important;\n  pointer-events:auto !important;\n}\n\n.btn-resume {\n  background:#0b9f53 !important;\n  color:#fff !important;\n  min-height:40px;\n  white-space:nowrap;\n  opacity:1 !important;\n  pointer-events:auto !important;\n}\n\n'''
+          if '/* FINAL-8CH-BASELINE-CSS */' not in s:
+              if css_marker not in s:
+                  raise SystemExit("Could not find button CSS marker")
+              s = s.replace(css_marker, '/* FINAL-8CH-BASELINE-CSS */\n' + css_patch + css_marker, 1)
+
+          # 5) Mark the firmware source so this workflow is idempotent.
+          if 'FINAL-8CH-WORKING-BASELINE' not in s:
+              s = s.replace('#include <WiFi.h>', '// FINAL-8CH-WORKING-BASELINE\n#include <WiFi.h>', 1)
+
+          path.write_text(s, encoding="utf-8")
+          print("Applied working 8-channel baseline compatibility fixes")
+          PY
+
+      - name: Validate
+        run: |
+          grep -q 'FINAL-8CH-WORKING-BASELINE' firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino
+          grep -q 'no-store, no-cache' firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino
+          grep -q 'DATA.connected = true' firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino
+          grep -q 'FINAL-8CH-BASELINE-CSS' firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino
+          grep -q 'const uint8_t relayPins' firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino
+          grep -A5 'const uint8_t relayPins' firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino | grep -q '19'
+          grep -A5 'const uint8_t relayPins' firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino | grep -q '18'
+          grep -A5 'const uint8_t relayPins' firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino | grep -q '5'
+          grep -A5 'const uint8_t relayPins' firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino | grep -q '17'
+
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "No firmware changes required."
+          else
+            git commit -m "fix: align 8ch hardware test with working baseline"
+            git push origin HEAD:feature/hardware-test-8ch-v2.0.1
+          fi
