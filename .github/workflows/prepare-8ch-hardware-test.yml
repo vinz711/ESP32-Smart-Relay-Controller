@@ -1,0 +1,109 @@
+name: Prepare 8ch Hardware Test Firmware
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/hardware-test-8ch-v2.0.1
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore clean v2.0.1 source
+        run: |
+          rm -rf /tmp/v2.0.1-source
+          mkdir -p /tmp/v2.0.1-source
+          git show v2.0.1:firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino > /tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino
+
+      - name: Apply 8-channel hardware GPIO mapping
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('/tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino')
+          s = p.read_text(encoding='utf-8')
+          old = '''const uint8_t relayPins[RELAY_COUNT] = {\n  5,\n  17,\n  16,\n  4\n};'''
+          new = '''const uint8_t relayPins[RELAY_COUNT] = {\n  19,\n  18,\n  5,\n  17\n};'''
+          if old not in s:
+              raise SystemExit('Expected v2.0.1 relay GPIO block was not found; refusing to build.')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Validate hardware-test source
+        run: |
+          test "$(grep -c '^<<<<<<<\|^=======\|^>>>>>>>' /tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino)" -eq 0
+          grep -q '#include <ArduinoOTA.h>' /tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino
+          grep -q '  19,' /tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino
+          grep -q '  18,' /tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino
+          grep -q '  5,' /tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino
+          grep -q '  17' /tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino
+          grep -q 'struct ScheduleSlot {' /tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino
+          echo 'Hardware-test source validation passed.'
+
+      - name: Install Arduino CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
+          echo "${GITHUB_WORKSPACE}/bin" >> "${GITHUB_PATH}"
+
+      - name: Install ESP32 core
+        run: |
+          arduino-cli config init
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32
+
+      - name: Install required libraries
+        run: |
+          arduino-cli lib install "ArduinoJson"
+
+      - name: Compile hardware-test firmware
+        run: |
+          rm -rf build
+          mkdir -p build/firmware
+          arduino-cli compile \
+            --fqbn esp32:esp32:esp32 \
+            --warnings all \
+            --output-dir build/firmware \
+            /tmp/v2.0.1-source
+
+      - name: Publish build summary
+        run: |
+          echo "## 8-channel Hardware Test Firmware" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Base: \`v2.0.1\` release" >> "$GITHUB_STEP_SUMMARY"
+          echo "- GPIO: R1=19, R2=18, R3=5, R4=17" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Relay 5-8: unused" >> "$GITHUB_STEP_SUMMARY"
+          echo "- OTA: ArduinoOTA included" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          ls -lh build/firmware >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### SHA-256" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          sha256sum build/firmware/* >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Package source and firmware
+        run: |
+          mkdir -p artifact
+          cp /tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino artifact/
+          cp build/firmware/*.bin artifact/
+          sha256sum artifact/* > artifact/SHA256SUMS.txt
+
+      - name: Upload hardware-test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2.0.1-8ch-hardware-test
+          path: artifact/
+          if-no-files-found: error
+          retention-days: 14
