@@ -4,7 +4,9 @@ on:
   pull_request:
     branches: [ main ]
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - feature/hardware-test-8ch-v2.0.1
 
 jobs:
   build:
@@ -38,6 +40,21 @@ jobs:
           rm -rf /tmp/ESP32_Smart_Relay_Controller
           mkdir -p /tmp/ESP32_Smart_Relay_Controller
           cp firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          if [ "${GITHUB_REF_NAME}" = "feature/hardware-test-8ch-v2.0.1" ]; then
+            python3 -c 'from pathlib import Path; p=Path("/tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino"); s=p.read_text(encoding="utf-8"); old="const uint8_t relayPins[RELAY_COUNT] = {\\n  5,\\n  17,\\n  16,\\n  4\\n};"; new="const uint8_t relayPins[RELAY_COUNT] = {\\n  19,\\n  18,\\n  5,\\n  17\\n};"; assert old in s, "Expected v2.0.1 relay GPIO block not found; refusing hardware-test build."; p.write_text(s.replace(old,new,1),encoding="utf-8")'
+          fi
+
+      - name: Validate hardware-test source
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "feature/hardware-test-8ch-v2.0.1" ]; then
+            if grep -nE '^<<<<<<<|^=======|^>>>>>>>' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino; then exit 1; fi
+            grep -q '#include <ArduinoOTA.h>' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+            grep -q '^  19,$' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+            grep -q '^  18,$' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+            grep -q '^  5,$' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+            grep -q '^  17$' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+            echo '8-channel GPIO/OTA validation passed.'
+          fi
 
       - name: Compile firmware
         run: |
@@ -53,7 +70,14 @@ jobs:
         run: |
           echo "## ESP32 Firmware Build" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Firmware source: \`firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino\`" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${GITHUB_REF_NAME}" = "feature/hardware-test-8ch-v2.0.1" ]; then
+            echo "- Build type: **8-channel hardware test**" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Base firmware: **v2.0.1**" >> "$GITHUB_STEP_SUMMARY"
+            echo "- GPIO: **R1=19, R2=18, R3=5, R4=17**" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Relay 5-8: **unused**" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Firmware source: \`firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino\`" >> "$GITHUB_STEP_SUMMARY"
+          fi
           echo "- Board: \`esp32:esp32:esp32\`" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo '```text' >> "$GITHUB_STEP_SUMMARY"
@@ -64,3 +88,17 @@ jobs:
           echo '```text' >> "$GITHUB_STEP_SUMMARY"
           sha256sum build/firmware/* >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish temporary hardware-test release
+        if: github.ref == 'refs/heads/feature/hardware-test-8ch-v2.0.1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino ./ESP32_Smart_Relay_Controller_8ch_Test.ino
+          sha256sum build/firmware/* ESP32_Smart_Relay_Controller_8ch_Test.ino > SHA256SUMS.txt
+          TEST_TAG="v2.0.1-8ch-test"
+          if gh release view "$TEST_TAG" >/dev/null 2>&1; then
+            gh release delete "$TEST_TAG" --yes --cleanup-tag
+          fi
+          gh release create "$TEST_TAG" --target "$GITHUB_SHA" --prerelease --title "v2.0.1 8CH Hardware Test" --notes "Temporary hardware-test build based on v2.0.1. GPIO mapping: R1=19, R2=18, R3=5, R4=17. Not an official release."
+          gh release upload "$TEST_TAG" build/firmware/*.bin ESP32_Smart_Relay_Controller_8ch_Test.ino SHA256SUMS.txt --clobber

@@ -54,10 +54,10 @@ const char* DEFAULT_WIFI_PASSWORD = "";
 #define RELAY_COUNT 4
 
 const uint8_t relayPins[RELAY_COUNT] = {
+  19,
+  18,
   5,
-  17,
-  16,
-  4
+  17
 };
 
 // Active LOW relay
@@ -658,6 +658,7 @@ String buildStatusJSON() {
   String json = "{";
   json += "\"ip\":\"" + WiFi.localIP().toString() + "\",";
   json += "\"wifi\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") + ",";
+  json += "\"tariff\":" + String(electricityTariff, 2) + ",";
   json += "\"relays\":[";
 
   for (int i = 0; i < RELAY_COUNT; i++) {
@@ -672,6 +673,7 @@ String buildStatusJSON() {
     json += "\"emergency\":" + String(r.emergencyOff ? "true" : "false") + ",";
     json += "\"manualOverride\":" + String(r.manualOverride ? "true" : "false") + ",";
     json += "\"runtime\":" + String(getCurrentRuntime(i)) + ",";
+    json += "\"wattage\":" + String(r.wattage, 2) + ",";
     json += "\"schedules\":[";
     for (int j = 0; j < MAX_SCHEDULES; j++) {
       if (j > 0) json += ",";
@@ -1532,6 +1534,15 @@ body.dark .runtime {
 
 .btn-off {
   background:#f23845;
+}
+
+.btn-emergency {
+  background:#fff5f5;
+  color:#c92f3d;
+  border:1px solid #ff8a8a;
+  min-height:40px;
+  white-space:nowrap;
+  font-weight:700;
 }
 
 .btn-schedule {
@@ -2535,12 +2546,16 @@ function loadStatus() {
   .then(data => {
 
     DATA = data;
+    DATA.connected = true;
 
     render();
+    loadPowerSettings();
 
   })
 
   .catch(() => {
+
+    if (DATA) DATA.connected = false;
 
     $("connection").textContent =
       "Disconnected";
@@ -2694,7 +2709,7 @@ function render() {
 
 
   $("connection").textContent =
-    DATA.wifi
+    DATA.connected
       ? "Connected"
       : "Disconnected";
 
@@ -2705,19 +2720,19 @@ function render() {
 
   $("footerConnection").textContent =
     "ESP32 " +
-    (DATA.wifi ? "Connected" : "Disconnected") +
+    (DATA.connected ? "Connected" : "Disconnected") +
     " | " +
     DATA.ip;
 
 
   let anyEmergency = DATA.relays.some(r => r.emergency);
-  $("systemStatus").innerHTML = DATA.wifi
+  $("systemStatus").innerHTML = DATA.connected
     ? (anyEmergency
         ? "<b style='color:#f23845'>● Emergency OFF active</b><br>" +
           "One or more relays are isolated from schedules. <button onclick=\"resumeAll()\">Resume AUTO</button>"
-        : "<b style='color:#08b95c'>● All systems normal</b><br>" +
-          "4 devices configured • Wi-Fi connected • Schedules active")
-    : "<b style='color:#f23845'>● Wi-Fi disconnected</b>";
+        : "<b style='color:#08b95c'>● ESP32 connected</b><br>" +
+          "4 devices configured • Dashboard online • Schedules active")
+    : "<b style='color:#f23845'>● ESP32 disconnected</b>";
 
 
   let html = "";
@@ -2872,7 +2887,7 @@ function render() {
 
           </button>
 
-          ${relay.emergency ? `<button class="btn btn-off" onclick="resumeRelay(${relay.id})">▶ Resume AUTO</button>` : `<button class="btn" style="border:1px solid #ff8a8a" onclick="emergencyOff(${relay.id})">🚨 Emergency OFF</button>`}
+          ${relay.emergency ? `<button class="btn btn-off btn-emergency" onclick="resumeRelay(${relay.id})">▶ Resume AUTO</button>` : `<button class="btn btn-emergency" onclick="emergencyOff(${relay.id})">🚨 Emergency OFF</button>`}
 
         </div>
 
