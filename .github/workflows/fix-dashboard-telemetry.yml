@@ -2,6 +2,9 @@ name: Fix Dashboard Telemetry
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/fix-dashboard-telemetry.yml
 
 permissions:
   contents: write
@@ -10,7 +13,7 @@ jobs:
   patch:
     runs-on: ubuntu-latest
     steps:
-      - name: Patch v2.0.1 firmware through GitHub API
+      - name: Patch final hardware-test firmware
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -18,7 +21,7 @@ jobs:
           FILE: firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino
         run: |
           python3 - <<'PY'
-          import base64, json, os, re, urllib.request
+          import base64, json, os, urllib.request
 
           repo = os.environ['REPO']
           branch = os.environ['BRANCH']
@@ -40,66 +43,82 @@ jobs:
           text = base64.b64decode(obj['content']).decode('utf-8')
           original = text
 
-          # 1) Expose tariff and per-relay wattage in /api/status so the UI
-          #    can restore persisted power settings after every refresh/reload.
-          old = '  json += "\\\"wifi\\\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") + ",";\n  json += "\\\"relays\\\":[";'
-          new = '  json += "\\\"wifi\\\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") + ",";\n  json += "\\\"tariff\\\":" + String(electricityTariff, 2) + ",";\n  json += "\\\"relays\\\":[";'
-          if old not in text:
-              raise SystemExit('status header pattern not found')
-          text = text.replace(old, new, 1)
+          def replace_once(old, new, label, required=False):
+              global text
+              if old in text:
+                  text = text.replace(old, new, 1)
+                  print('patched:', label)
+                  return True
+              print('already patched or pattern absent:', label)
+              if required:
+                  raise SystemExit('required pattern missing: ' + label)
+              return False
 
-          old = '    json += "\\\"runtime\\\":" + String(getCurrentRuntime(i)) + ",";\n    json += "\\\"schedules\\\":[";'
-          new = '    json += "\\\"runtime\\\":" + String(getCurrentRuntime(i)) + ",";\n    json += "\\\"wattage\\\":" + String(r.wattage, 2) + ",";\n    json += "\\\"schedules\\\":[";'
-          if old not in text:
-              raise SystemExit('relay telemetry pattern not found')
-          text = text.replace(old, new, 1)
+          # Keep v2.0.1 as a 4-relay firmware, but map those four logical
+          # relays to the first four outputs of the user's 8-way board.
+          replace_once(
+              '''const uint8_t relayPins[RELAY_COUNT] = {\n  5,\n  17,\n  16,\n  4\n};''',
+              '''const uint8_t relayPins[RELAY_COUNT] = {\n  19,\n  18,\n  5,\n  17\n};''',
+              '8-way board GPIO mapping'
+          )
 
-          # 2) Treat a successful /api/status response as proof that the
-          #    browser can reach the ESP32. Wi-Fi link state is kept separately.
-          old = '''  .then(data => {\n\n    DATA = data;\n\n    render();\n\n  })'''
-          new = '''  .then(data => {\n\n    DATA = data;\n    DATA.connected = true;\n\n    render();\n    loadPowerSettings();\n\n  })'''
-          if old not in text:
-              raise SystemExit('loadStatus success pattern not found')
-          text = text.replace(old, new, 1)
+          # Expose tariff and wattage through /api/status.
+          replace_once(
+              '  json += "\\\"wifi\\\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") + ",";\n  json += "\\\"relays\\\":[";',
+              '  json += "\\\"wifi\\\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") + ",";\n  json += "\\\"tariff\\\":" + String(electricityTariff, 2) + ",";\n  json += "\\\"relays\\\":[";',
+              'status tariff'
+          )
+          replace_once(
+              '    json += "\\\"runtime\\\":" + String(getCurrentRuntime(i)) + ",";\n    json += "\\\"schedules\\\":[";',
+              '    json += "\\\"runtime\\\":" + String(getCurrentRuntime(i)) + ",";\n    json += "\\\"wattage\\\":" + String(r.wattage, 2) + ",";\n    json += "\\\"schedules\\\":[";',
+              'status wattage'
+          )
 
-          old = '''  .catch(() => {\n\n    $("connection").textContent =\n      "Disconnected";\n\n    $("systemStatus").innerHTML =\n      "<span style='color:#f23845'>● ESP32 disconnected</span>";\n\n  });'''
-          new = '''  .catch(() => {\n\n    if (DATA) DATA.connected = false;\n\n    $("connection").textContent =\n      "Disconnected";\n\n    $("systemStatus").innerHTML =\n      "<span style='color:#f23845'>● ESP32 disconnected</span>";\n\n  });'''
-          if old not in text:
-              raise SystemExit('loadStatus failure pattern not found')
-          text = text.replace(old, new, 1)
+          # Treat successful /api/status as connected and restore saved power settings.
+          replace_once(
+              '''  .then(data => {\n\n    DATA = data;\n\n    render();\n\n  })''',
+              '''  .then(data => {\n\n    DATA = data;\n    DATA.connected = true;\n\n    render();\n    loadPowerSettings();\n\n  })''',
+              'status success connection'
+          )
+          replace_once(
+              '''  $("connection").textContent =\n    DATA.wifi\n      ? "Connected"\n      : "Disconnected";''',
+              '''  $("connection").textContent =\n    DATA.connected\n      ? "Connected"\n      : "Disconnected";''',
+              'header connection'
+          )
+          replace_once(
+              '''  $("footerConnection").textContent =\n    "ESP32 " +\n    (DATA.wifi ? "Connected" : "Disconnected") +\n    " | " +\n    DATA.ip;''',
+              '''  $("footerConnection").textContent =\n    "ESP32 " +\n    (DATA.connected ? "Connected" : "Disconnected") +\n    " | " +\n    DATA.ip;''',
+              'footer connection'
+          )
+          replace_once(
+              '''  $("systemStatus").innerHTML = DATA.wifi\n    ? (anyEmergency\n        ? "<b style='color:#f23845'>● Emergency OFF active</b><br>" +\n          "One or more relays are isolated from schedules. <button onclick=\\"resumeAll()\\">Resume AUTO</button>"\n        : "<b style='color:#08b95c'>● All systems normal</b><br>" +\n          "4 devices configured • Wi-Fi connected • Schedules active")\n    : "<b style='color:#f23845'>● Wi-Fi disconnected</b>";''',
+              '''  $("systemStatus").innerHTML = DATA.connected\n    ? (anyEmergency\n        ? "<b style='color:#f23845'>● Emergency OFF active</b><br>" +\n          "One or more relays are isolated from schedules. <button onclick=\\"resumeAll()\\">Resume AUTO</button>"\n        : "<b style='color:#08b95c'>● ESP32 connected</b><br>" +\n          "4 devices configured • Dashboard online • Schedules active")\n    : "<b style='color:#f23845'>● ESP32 disconnected</b>";''',
+              'system status'
+          )
+          replace_once(
+              '''.btn-off {\n  background:#f23845;\n}''',
+              '''.btn-off {\n  background:#f23845;\n}\n\n.btn-emergency {\n  background:#fff5f5;\n  color:#c92f3d;\n  border:1px solid #ff8a8a;\n  min-height:40px;\n  white-space:nowrap;\n  font-weight:700;\n}''',
+              'emergency button style'
+          )
+          replace_once(
+              '''${relay.emergency ? `<button class="btn btn-off" onclick="resumeRelay(${relay.id})">▶ Resume AUTO</button>` : `<button class="btn" style="border:1px solid #ff8a8a" onclick="emergencyOff(${relay.id})">🚨 Emergency OFF</button>`}''',
+              '''${relay.emergency ? `<button class="btn btn-off btn-emergency" onclick="resumeRelay(${relay.id})">▶ Resume AUTO</button>` : `<button class="btn btn-emergency" onclick="emergencyOff(${relay.id})">🚨 Emergency OFF</button>`}''',
+              'emergency button markup'
+          )
 
-          # 3) Use reachability for the ESP32 status indicator instead of
-          #    confusing browser-to-device reachability with Wi-Fi link state.
-          old = '''  $("connection").textContent =\n    DATA.wifi\n      ? "Connected"\n      : "Disconnected";'''
-          new = '''  $("connection").textContent =\n    DATA.connected\n      ? "Connected"\n      : "Disconnected";'''
-          if old not in text:
-              raise SystemExit('connection render pattern not found')
-          text = text.replace(old, new, 1)
-
-          old = '''  $("footerConnection").textContent =\n    "ESP32 " +\n    (DATA.wifi ? "Connected" : "Disconnected") +\n    " | " +\n    DATA.ip;'''
-          new = '''  $("footerConnection").textContent =\n    "ESP32 " +\n    (DATA.connected ? "Connected" : "Disconnected") +\n    " | " +\n    DATA.ip;'''
-          if old not in text:
-              raise SystemExit('footer render pattern not found')
-          text = text.replace(old, new, 1)
-
-          old = '''  $("systemStatus").innerHTML = DATA.wifi\n    ? (anyEmergency\n        ? "<b style='color:#f23845'>● Emergency OFF active</b><br>" +\n          "One or more relays are isolated from schedules. <button onclick=\\"resumeAll()\\">Resume AUTO</button>"\n        : "<b style='color:#08b95c'>● All systems normal</b><br>" +\n          "4 devices configured • Wi-Fi connected • Schedules active")\n    : "<b style='color:#f23845'>● Wi-Fi disconnected</b>";'''
-          new = '''  $("systemStatus").innerHTML = DATA.connected\n    ? (anyEmergency\n        ? "<b style='color:#f23845'>● Emergency OFF active</b><br>" +\n          "One or more relays are isolated from schedules. <button onclick=\\"resumeAll()\\">Resume AUTO</button>"\n        : "<b style='color:#08b95c'>● ESP32 connected</b><br>" +\n          "4 devices configured • Dashboard online • Schedules active")\n    : "<b style='color:#f23845'>● ESP32 disconnected</b>";'''
-          if old not in text:
-              raise SystemExit('system status pattern not found')
-          text = text.replace(old, new, 1)
-
-          # 4) Add the missing dashboard summary renderer.
-          marker = '''// ==========================================================\n// FORMAT RUNTIME\n// ==========================================================\n\nfunction formatRuntime(ms) {'''
-          dashboard = '''// ==========================================================\n// DASHBOARD SUMMARY\n// ==========================================================\n\nfunction renderDashboard() {\n\n  if (!DATA || !Array.isArray(DATA.relays)) return;\n\n  let active = DATA.relays.filter(r => r.state).length;\n  let totalRuntime = DATA.relays.reduce((sum, r) => sum + Number(r.runtime || 0), 0);\n  let activePower = DATA.relays.reduce((sum, r) => {\n    return sum + (r.state ? Number(r.wattage || 0) : 0);\n  }, 0);\n  let energyWh = DATA.relays.reduce((sum, r) => {\n    return sum + (Number(r.runtime || 0) / 3600000) * Number(r.wattage || 0);\n  }, 0);\n  let tariff = Number(DATA.tariff || 0);\n  let cost = (energyWh / 1000) * tariff;\n\n  $("summaryActive").textContent = active + " / " + DATA.relays.length;\n  $("summaryActiveDetail").textContent = active === 0 ? "All relays OFF" : active + " relay" + (active === 1 ? " ON" : "s ON");\n  $("summaryRuntime").textContent = formatTotalRuntime(totalRuntime);\n  $("summaryRuntimeDetail").textContent = "Across all relays";\n  $("summaryPower").textContent = Math.round(activePower) + " W";\n  $("summaryEnergy").textContent = energyWh.toFixed(2) + " Wh today";\n  $("summaryCost").textContent = "₹" + cost.toFixed(2);\n\n  let next = getNextSchedule();\n  if (next) {\n    $("summaryNext").textContent = next.date.toLocaleTimeString("en-IN", {hour:"2-digit", minute:"2-digit", hour12:true});\n    $("summaryNextDetail").textContent = next.relay.name;\n  } else {\n    $("summaryNext").textContent = "None";\n    $("summaryNextDetail").textContent = "No upcoming schedule";\n  }\n}\n\n\n// ==========================================================\n// FORMAT RUNTIME\n// ==========================================================\n\nfunction formatRuntime(ms) {'''
-          if marker not in text:
-              raise SystemExit('dashboard insertion marker not found')
-          text = text.replace(marker, dashboard, 1)
+          # Mark failed status requests disconnected.
+          replace_once(
+              '''  .catch(() => {\n\n    $("connection").textContent =\n      "Disconnected";''',
+              '''  .catch(() => {\n\n    if (DATA) DATA.connected = false;\n\n    $("connection").textContent =\n      "Disconnected";''',
+              'status failure connection'
+          )
 
           if text == original:
-              raise SystemExit('no changes made')
+              print('No source changes needed.')
+              raise SystemExit(0)
 
           payload = {
-              'message': 'fix: repair dashboard power telemetry and ESP32 status',
+              'message': 'fix: map v2.0.1 to 8-way board and finalize dashboard fixes',
               'content': base64.b64encode(text.encode()).decode(),
               'sha': sha,
               'branch': branch
