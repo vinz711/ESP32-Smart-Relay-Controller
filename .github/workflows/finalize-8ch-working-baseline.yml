@@ -38,18 +38,14 @@ jobs:
           if n != 1:
               raise SystemExit("Could not patch status cache headers")
 
-          # 3) The known-good baseline marks the API connection as healthy after
-          # every successful status/power response. Preserve that state after
-          # saving power settings; otherwise render() interprets the replacement
-          # JSON object as disconnected because it has no client-side flag.
+          # 3) Keep the browser connected after a successful power-settings save.
           power_pattern = re.compile(r'(function savePowerSettings\(\)\s*\{.*?\.then\(data => \{\s*DATA = data;)(\s*render\(\);)', re.S)
           power_replacement = r'\1\n    DATA.connected = true;\n    loadPowerSettings();\2'
           s, n = power_pattern.subn(power_replacement, s, count=1)
           if n != 1:
               raise SystemExit("Could not patch power-save connection state")
 
-          # 4) Keep the emergency controls visibly active. The working 8ch
-          # baseline uses explicit emergency/resume button classes.
+          # 4) Keep emergency/resume controls visible and clickable.
           css_marker = '.btn-schedule {'
           css_patch = '''.btn-emergency {\n  background:#fff5f5 !important;\n  color:#c92f3d !important;\n  border:1px solid #ff8a8a !important;\n  min-height:40px;\n  white-space:nowrap;\n  font-weight:700;\n  opacity:1 !important;\n  pointer-events:auto !important;\n}\n\n.btn-emergency:disabled {\n  background:#fff5f5 !important;\n  color:#c92f3d !important;\n  opacity:1 !important;\n  pointer-events:auto !important;\n}\n\n.btn-resume {\n  background:#0b9f53 !important;\n  color:#fff !important;\n  min-height:40px;\n  white-space:nowrap;\n  opacity:1 !important;\n  pointer-events:auto !important;\n}\n\n'''
           if '/* FINAL-8CH-BASELINE-CSS */' not in s:
@@ -57,12 +53,126 @@ jobs:
                   raise SystemExit("Could not find button CSS marker")
               s = s.replace(css_marker, '/* FINAL-8CH-BASELINE-CSS */\n' + css_patch + css_marker, 1)
 
-          # 5) Mark the firmware source so this workflow is idempotent.
+          # 5) Replace the one-shot Wi-Fi connection with a safer implementation.
+          wifi_pattern = re.compile(r'void connectWiFi\(\)\s*\{.*?\n\}\n\n// ============================================================\n// JSON STATUS', re.S)
+          wifi_replacement = r'''bool tryWiFiCredentials(const char* ssid, const char* password, unsigned long timeoutMs) {
+  if (ssid == nullptr || ssid[0] == '\0') return false;
+
+  WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
+  WiFi.disconnect(false, false);
+  delay(200);
+  WiFi.begin(ssid, password == nullptr ? "" : password);
+
+  unsigned long start = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - start < timeoutMs) {
+    delay(250);
+    Serial.print(".");
+  }
+  Serial.println();
+  return WiFi.status() == WL_CONNECTED;
+}
+
+void connectWiFi() {
+  Serial.println();
+  Serial.println("Connecting to Wi-Fi...");
+
+  bool connected = tryWiFiCredentials(wifiSSID.c_str(), wifiPassword.c_str(), 20000);
+
+  // If Preferences contains stale credentials, fall back to the credentials
+  // compiled into DEFAULT_WIFI_SSID / DEFAULT_WIFI_PASSWORD. This does not
+  // require committing the real password to GitHub; the user can keep those
+  // values local before compiling/flashing.
+  if (!connected && strlen(DEFAULT_WIFI_SSID) > 0 &&
+      wifiSSID != String(DEFAULT_WIFI_SSID)) {
+    Serial.println("Saved Wi-Fi credentials failed; trying compiled defaults...");
+    connected = tryWiFiCredentials(DEFAULT_WIFI_SSID, DEFAULT_WIFI_PASSWORD, 20000);
+    if (connected) {
+      wifiSSID = DEFAULT_WIFI_SSID;
+      wifiPassword = DEFAULT_WIFI_PASSWORD;
+      prefs.putString("ssid", wifiSSID);
+      prefs.putString("pass", wifiPassword);
+    }
+  }
+
+  if (connected) {
+    Serial.println("Wi-Fi connected!");
+    Serial.print("ESP32 IP Address: ");
+    Serial.println(WiFi.localIP());
+
+    configTime(
+      GMT_OFFSET_SEC,
+      DAYLIGHT_OFFSET_SEC,
+      NTP_SERVER_1,
+      NTP_SERVER_2
+    );
+
+    Serial.println("Waiting for time synchronization...");
+    struct tm timeinfo;
+    if (getLocalTime(&timeinfo, 10000)) {
+      Serial.println("Time synchronized.");
+      char buffer[64];
+      strftime(buffer, sizeof(buffer), "%d-%m-%Y %H:%M:%S", &timeinfo);
+      Serial.print("Current IST time: ");
+      Serial.println(buffer);
+    }
+  } else {
+    Serial.println("Wi-Fi connection failed.");
+  }
+}
+
+void maintainWiFi() {
+  static unsigned long lastAttempt = 0;
+  if (WiFi.status() == WL_CONNECTED) return;
+  if (millis() - lastAttempt < 15000UL) return;
+
+  lastAttempt = millis();
+  Serial.println("[Wi-Fi] Connection lost. Retrying...");
+
+  if (tryWiFiCredentials(wifiSSID.c_str(), wifiPassword.c_str(), 10000)) {
+    Serial.print("[Wi-Fi] Reconnected. IP: ");
+    Serial.println(WiFi.localIP());
+    return;
+  }
+
+  if (strlen(DEFAULT_WIFI_SSID) > 0 && wifiSSID != String(DEFAULT_WIFI_SSID)) {
+    Serial.println("[Wi-Fi] Retrying with compiled defaults...");
+    if (tryWiFiCredentials(DEFAULT_WIFI_SSID, DEFAULT_WIFI_PASSWORD, 10000)) {
+      wifiSSID = DEFAULT_WIFI_SSID;
+      wifiPassword = DEFAULT_WIFI_PASSWORD;
+      prefs.putString("ssid", wifiSSID);
+      prefs.putString("pass", wifiPassword);
+      Serial.print("[Wi-Fi] Reconnected using defaults. IP: ");
+      Serial.println(WiFi.localIP());
+    }
+  }
+}
+
+// ============================================================
+// JSON STATUS'''
+          s, n = wifi_pattern.subn(wifi_replacement, s, count=1)
+          if n != 1:
+              raise SystemExit("Could not replace connectWiFi() implementation")
+
+          # 6) Continuously monitor Wi-Fi without interrupting relay schedules.
+          loop_pattern = re.compile(r'void loop\(\)\s*\{\s*server\.handleClient\(\);\s*ArduinoOTA\.handle\(\);\s*processSchedules\(\);\s*delay\(2\);\s*\}', re.S)
+          loop_replacement = '''void loop() {
+  maintainWiFi();
+  server.handleClient();
+  ArduinoOTA.handle();
+  processSchedules();
+  delay(2);
+}'''
+          s, n = loop_pattern.subn(loop_replacement, s, count=1)
+          if n != 1:
+              raise SystemExit("Could not patch main loop")
+
+          # 7) Mark this as the final working-baseline source.
           if 'FINAL-8CH-WORKING-BASELINE' not in s:
               s = s.replace('#include <WiFi.h>', '// FINAL-8CH-WORKING-BASELINE\n#include <WiFi.h>', 1)
 
           path.write_text(s, encoding="utf-8")
-          print("Applied working 8-channel baseline compatibility fixes")
+          print("Applied 8-channel baseline, power/UI fixes, and Wi-Fi recovery")
           PY
 
       - name: Validate
@@ -71,6 +181,10 @@ jobs:
           grep -q 'no-store, no-cache' firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino
           grep -q 'DATA.connected = true' firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino
           grep -q 'FINAL-8CH-BASELINE-CSS' firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino
+          grep -q 'bool tryWiFiCredentials' firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino
+          grep -q 'void maintainWiFi' firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino
+          grep -q 'WiFi.setAutoReconnect(true)' firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino
+          grep -q 'maintainWiFi();' firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino
           grep -q 'const uint8_t relayPins' firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino
           grep -A5 'const uint8_t relayPins' firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino | grep -q '19'
           grep -A5 'const uint8_t relayPins' firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino | grep -q '18'
@@ -86,6 +200,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No firmware changes required."
           else
-            git commit -m "fix: align 8ch hardware test with working baseline"
+            git commit -m "fix: add Wi-Fi fallback and automatic reconnect"
             git push origin HEAD:feature/hardware-test-8ch-v2.0.1
           fi
