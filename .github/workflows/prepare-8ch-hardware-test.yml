@@ -45,6 +45,19 @@ jobs:
           p.write_text(s.replace(old, new, 1), encoding='utf-8')
           PY
 
+      - name: Apply dashboard summary fix
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('/tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino')
+          s = p.read_text(encoding='utf-8')
+          old = '''function render() {\n\n  if (!DATA) return;\n\n\n  $("connection").textContent ='''
+          new = '''function render() {\n\n  if (!DATA) return;\n\n  // Update dashboard summary cards from the live relay status.\n  // Runtime values are milliseconds; wattage values are watts.\n  const activeRelays = DATA.relays.filter(r => r.state).length;\n  let totalRuntime = 0;\n  let currentPower = 0;\n  let totalEnergyWh = 0;\n\n  DATA.relays.forEach(relay => {\n    const runtime = Number(relay.runtime || 0);\n    const watts = Number(relay.wattage || 0);\n\n    totalRuntime += runtime;\n    if (relay.state) currentPower += watts;\n    totalEnergyWh += (runtime / 3600000) * watts;\n  });\n\n  $("summaryActive").textContent =\n    activeRelays + " / " + DATA.relays.length;\n\n  $("summaryActiveDetail").textContent =\n    activeRelays === 0\n      ? "All relays OFF"\n      : activeRelays + " relay" + (activeRelays === 1 ? "" : "s") + " ON";\n\n  $("summaryRuntime").textContent =\n    formatRuntime(totalRuntime);\n\n  $("summaryRuntimeDetail").textContent =\n    "Across all relays";\n\n  $("summaryPower").textContent =\n    currentPower.toFixed(1).replace(/\\.0$/, "") + " W";\n\n  $("summaryEnergy").textContent =\n    totalEnergyWh.toFixed(2) + " Wh today";\n\n  const nextSchedule = getNextSchedule();\n\n  if (nextSchedule) {\n    $("summaryNext").textContent =\n      nextSchedule.date.toLocaleTimeString([], {\n        hour: "2-digit",\n        minute: "2-digit",\n        hour12: true\n      });\n\n    $("summaryNextDetail").textContent =\n      nextSchedule.relay.name;\n  } else {\n    $("summaryNext").textContent = "None";\n    $("summaryNextDetail").textContent = "No upcoming schedule";\n  }\n\n\n  $("connection").textContent ='''
+          if old not in s:
+              raise SystemExit('Expected render() block was not found; refusing to build.')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          PY
+
       - name: Validate hardware-test source
         run: |
           if grep -nE '^<<<<<<<|^=======|^>>>>>>>' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino; then exit 1; fi
@@ -54,6 +67,11 @@ jobs:
           grep -q '^  18,$' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
           grep -q '^  5,$' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
           grep -q '^  17$' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          grep -q 'summaryActive' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          grep -q 'summaryRuntime' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          grep -q 'summaryPower' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          grep -q 'summaryEnergy' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          grep -q 'summaryNext' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
 
       - name: Install Arduino CLI
         run: |
@@ -83,6 +101,7 @@ jobs:
           echo "- GPIO: R1=19, R2=18, R3=5, R4=17" >> "$GITHUB_STEP_SUMMARY"
           echo "- Relay 5-8: unused" >> "$GITHUB_STEP_SUMMARY"
           echo "- OTA: ArduinoOTA included" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Dashboard summary cards: runtime, power, energy and next schedule enabled" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           ls -lh build/firmware >> "$GITHUB_STEP_SUMMARY"
           sha256sum build/firmware/* >> "$GITHUB_STEP_SUMMARY"
@@ -103,5 +122,5 @@ jobs:
           if gh release view "$TEST_TAG" >/dev/null 2>&1; then
             gh release delete "$TEST_TAG" --yes --cleanup-tag
           fi
-          gh release create "$TEST_TAG" --target "$GITHUB_SHA" --prerelease --title "v2.0.1 8CH Hardware Test" --notes "Temporary hardware-test build. Based on v2.0.1 with GPIO mapping R1=19, R2=18, R3=5, R4=17. Not an official release."
+          gh release create "$TEST_TAG" --target "$GITHUB_SHA" --prerelease --title "v2.0.1 8CH Hardware Test" --notes "Temporary hardware-test build. Based on v2.0.1 with GPIO mapping R1=19, R2=18, R3=5, R4=17 and dashboard summary card fix. Not an official release."
           gh release upload "$TEST_TAG" "$GITHUB_WORKSPACE"/artifact/* --clobber
