@@ -1,0 +1,110 @@
+name: Fix Dashboard Telemetry
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Patch v2.0.1 firmware through GitHub API
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BRANCH: feature/hardware-test-8ch-v2.0.1
+          FILE: firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino
+        run: |
+          python3 - <<'PY'
+          import base64, json, os, re, urllib.request
+
+          repo = os.environ['REPO']
+          branch = os.environ['BRANCH']
+          path = os.environ['FILE']
+          token = os.environ['GH_TOKEN']
+          api = f'https://api.github.com/repos/{repo}/contents/{path}?ref={branch}'
+
+          def request(url, method='GET', payload=None):
+              data = None if payload is None else json.dumps(payload).encode()
+              req = urllib.request.Request(url, data=data, method=method)
+              req.add_header('Accept', 'application/vnd.github+json')
+              req.add_header('Authorization', f'Bearer {token}')
+              req.add_header('X-GitHub-Api-Version', '2026-03-10')
+              with urllib.request.urlopen(req) as r:
+                  return json.load(r)
+
+          obj = request(api)
+          sha = obj['sha']
+          text = base64.b64decode(obj['content']).decode('utf-8')
+          original = text
+
+          # 1) Expose tariff and per-relay wattage in /api/status so the UI
+          #    can restore persisted power settings after every refresh/reload.
+          old = '  json += "\\\"wifi\\\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") + ",";\n  json += "\\\"relays\\\":[";'
+          new = '  json += "\\\"wifi\\\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") + ",";\n  json += "\\\"tariff\\\":" + String(electricityTariff, 2) + ",";\n  json += "\\\"relays\\\":[";'
+          if old not in text:
+              raise SystemExit('status header pattern not found')
+          text = text.replace(old, new, 1)
+
+          old = '    json += "\\\"runtime\\\":" + String(getCurrentRuntime(i)) + ",";\n    json += "\\\"schedules\\\":[";'
+          new = '    json += "\\\"runtime\\\":" + String(getCurrentRuntime(i)) + ",";\n    json += "\\\"wattage\\\":" + String(r.wattage, 2) + ",";\n    json += "\\\"schedules\\\":[";'
+          if old not in text:
+              raise SystemExit('relay telemetry pattern not found')
+          text = text.replace(old, new, 1)
+
+          # 2) Treat a successful /api/status response as proof that the
+          #    browser can reach the ESP32. Wi-Fi link state is kept separately.
+          old = '''  .then(data => {\n\n    DATA = data;\n\n    render();\n\n  })'''
+          new = '''  .then(data => {\n\n    DATA = data;\n    DATA.connected = true;\n\n    render();\n    loadPowerSettings();\n\n  })'''
+          if old not in text:
+              raise SystemExit('loadStatus success pattern not found')
+          text = text.replace(old, new, 1)
+
+          old = '''  .catch(() => {\n\n    $("connection").textContent =\n      "Disconnected";\n\n    $("systemStatus").innerHTML =\n      "<span style='color:#f23845'>● ESP32 disconnected</span>";\n\n  });'''
+          new = '''  .catch(() => {\n\n    if (DATA) DATA.connected = false;\n\n    $("connection").textContent =\n      "Disconnected";\n\n    $("systemStatus").innerHTML =\n      "<span style='color:#f23845'>● ESP32 disconnected</span>";\n\n  });'''
+          if old not in text:
+              raise SystemExit('loadStatus failure pattern not found')
+          text = text.replace(old, new, 1)
+
+          # 3) Use reachability for the ESP32 status indicator instead of
+          #    confusing browser-to-device reachability with Wi-Fi link state.
+          old = '''  $("connection").textContent =\n    DATA.wifi\n      ? "Connected"\n      : "Disconnected";'''
+          new = '''  $("connection").textContent =\n    DATA.connected\n      ? "Connected"\n      : "Disconnected";'''
+          if old not in text:
+              raise SystemExit('connection render pattern not found')
+          text = text.replace(old, new, 1)
+
+          old = '''  $("footerConnection").textContent =\n    "ESP32 " +\n    (DATA.wifi ? "Connected" : "Disconnected") +\n    " | " +\n    DATA.ip;'''
+          new = '''  $("footerConnection").textContent =\n    "ESP32 " +\n    (DATA.connected ? "Connected" : "Disconnected") +\n    " | " +\n    DATA.ip;'''
+          if old not in text:
+              raise SystemExit('footer render pattern not found')
+          text = text.replace(old, new, 1)
+
+          old = '''  $("systemStatus").innerHTML = DATA.wifi\n    ? (anyEmergency\n        ? "<b style='color:#f23845'>● Emergency OFF active</b><br>" +\n          "One or more relays are isolated from schedules. <button onclick=\\"resumeAll()\\">Resume AUTO</button>"\n        : "<b style='color:#08b95c'>● All systems normal</b><br>" +\n          "4 devices configured • Wi-Fi connected • Schedules active")\n    : "<b style='color:#f23845'>● Wi-Fi disconnected</b>";'''
+          new = '''  $("systemStatus").innerHTML = DATA.connected\n    ? (anyEmergency\n        ? "<b style='color:#f23845'>● Emergency OFF active</b><br>" +\n          "One or more relays are isolated from schedules. <button onclick=\\"resumeAll()\\">Resume AUTO</button>"\n        : "<b style='color:#08b95c'>● ESP32 connected</b><br>" +\n          "4 devices configured • Dashboard online • Schedules active")\n    : "<b style='color:#f23845'>● ESP32 disconnected</b>";'''
+          if old not in text:
+              raise SystemExit('system status pattern not found')
+          text = text.replace(old, new, 1)
+
+          # 4) Add the missing dashboard summary renderer.
+          marker = '''// ==========================================================\n// FORMAT RUNTIME\n// ==========================================================\n\nfunction formatRuntime(ms) {'''
+          dashboard = '''// ==========================================================\n// DASHBOARD SUMMARY\n// ==========================================================\n\nfunction renderDashboard() {\n\n  if (!DATA || !Array.isArray(DATA.relays)) return;\n\n  let active = DATA.relays.filter(r => r.state).length;\n  let totalRuntime = DATA.relays.reduce((sum, r) => sum + Number(r.runtime || 0), 0);\n  let activePower = DATA.relays.reduce((sum, r) => {\n    return sum + (r.state ? Number(r.wattage || 0) : 0);\n  }, 0);\n  let energyWh = DATA.relays.reduce((sum, r) => {\n    return sum + (Number(r.runtime || 0) / 3600000) * Number(r.wattage || 0);\n  }, 0);\n  let tariff = Number(DATA.tariff || 0);\n  let cost = (energyWh / 1000) * tariff;\n\n  $("summaryActive").textContent = active + " / " + DATA.relays.length;\n  $("summaryActiveDetail").textContent = active === 0 ? "All relays OFF" : active + " relay" + (active === 1 ? " ON" : "s ON");\n  $("summaryRuntime").textContent = formatTotalRuntime(totalRuntime);\n  $("summaryRuntimeDetail").textContent = "Across all relays";\n  $("summaryPower").textContent = Math.round(activePower) + " W";\n  $("summaryEnergy").textContent = energyWh.toFixed(2) + " Wh today";\n  $("summaryCost").textContent = "₹" + cost.toFixed(2);\n\n  let next = getNextSchedule();\n  if (next) {\n    $("summaryNext").textContent = next.date.toLocaleTimeString("en-IN", {hour:"2-digit", minute:"2-digit", hour12:true});\n    $("summaryNextDetail").textContent = next.relay.name;\n  } else {\n    $("summaryNext").textContent = "None";\n    $("summaryNextDetail").textContent = "No upcoming schedule";\n  }\n}\n\n\n// ==========================================================\n// FORMAT RUNTIME\n// ==========================================================\n\nfunction formatRuntime(ms) {'''
+          if marker not in text:
+              raise SystemExit('dashboard insertion marker not found')
+          text = text.replace(marker, dashboard, 1)
+
+          if text == original:
+              raise SystemExit('no changes made')
+
+          payload = {
+              'message': 'fix: repair dashboard power telemetry and ESP32 status',
+              'content': base64.b64encode(text.encode()).decode(),
+              'sha': sha,
+              'branch': branch
+          }
+          result = request(f'https://api.github.com/repos/{repo}/contents/{path}', 'PUT', payload)
+          print('Updated:', result['content']['path'])
+          print('Commit:', result['commit']['sha'])
+          PY
