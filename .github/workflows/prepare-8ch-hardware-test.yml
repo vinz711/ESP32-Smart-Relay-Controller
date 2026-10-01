@@ -58,6 +58,25 @@ jobs:
           p.write_text(s.replace(old, new, 1), encoding='utf-8')
           PY
 
+      - name: Apply power telemetry fix
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('/tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino')
+          s = p.read_text(encoding='utf-8')
+          old = '''String buildStatusJSON() {\n  String json = "{";\n  json += "\\"ip\\":\\"" + WiFi.localIP().toString() + "\\",";\n  json += "\\"wifi\\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") + ",";\n  json += "\\"relays\\":[";'''
+          new = '''String buildStatusJSON() {\n  String json = "{";\n  json += "\\"ip\\":\\"" + WiFi.localIP().toString() + "\\",";\n  json += "\\"wifi\\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") + ",";\n  json += "\\"tariff\\":" + String(electricityTariff, 2) + ",";\n  json += "\\"relays\\":[";'''
+          if old not in s:
+              raise SystemExit('Expected buildStatusJSON header was not found; refusing to build.')
+          s = s.replace(old, new, 1)
+
+          old = '''    json += "\\"manualOverride\\":" + String(r.manualOverride ? "true" : "false") + ",";\n    json += "\\"runtime\\":" + String(getCurrentRuntime(i)) + ",";'''
+          new = '''    json += "\\"manualOverride\\":" + String(r.manualOverride ? "true" : "false") + ",";\n    json += "\\"runtime\\":" + String(getCurrentRuntime(i)) + ",";\n    json += "\\"wattage\\":" + String(r.wattage, 2) + ",";'''
+          if old not in s:
+              raise SystemExit('Expected relay status block was not found; refusing to build.')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          PY
+
       - name: Validate hardware-test source
         run: |
           if grep -nE '^<<<<<<<|^=======|^>>>>>>>' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino; then exit 1; fi
@@ -72,6 +91,8 @@ jobs:
           grep -q 'summaryPower' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
           grep -q 'summaryEnergy' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
           grep -q 'summaryNext' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          grep -q '"tariff"' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          grep -q '"wattage"' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
 
       - name: Install Arduino CLI
         run: |
@@ -102,6 +123,7 @@ jobs:
           echo "- Relay 5-8: unused" >> "$GITHUB_STEP_SUMMARY"
           echo "- OTA: ArduinoOTA included" >> "$GITHUB_STEP_SUMMARY"
           echo "- Dashboard summary cards: runtime, power, energy and next schedule enabled" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Power telemetry: wattage and tariff included in /api/status" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           ls -lh build/firmware >> "$GITHUB_STEP_SUMMARY"
           sha256sum build/firmware/* >> "$GITHUB_STEP_SUMMARY"
@@ -122,5 +144,5 @@ jobs:
           if gh release view "$TEST_TAG" >/dev/null 2>&1; then
             gh release delete "$TEST_TAG" --yes --cleanup-tag
           fi
-          gh release create "$TEST_TAG" --target "$GITHUB_SHA" --prerelease --title "v2.0.1 8CH Hardware Test" --notes "Temporary hardware-test build. Based on v2.0.1 with GPIO mapping R1=19, R2=18, R3=5, R4=17 and dashboard summary card fix. Not an official release."
+          gh release create "$TEST_TAG" --target "$GITHUB_SHA" --prerelease --title "v2.0.1 8CH Hardware Test" --notes "Temporary hardware-test build. Based on v2.0.1 with GPIO mapping R1=19, R2=18, R3=5, R4=17 and dashboard summary/power telemetry fixes. Not an official release."
           gh release upload "$TEST_TAG" "$GITHUB_WORKSPACE"/artifact/* --clobber
