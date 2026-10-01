@@ -28,14 +28,15 @@ jobs:
       - name: Restore clean v2.0.1 source
         run: |
           cd repo
-          mkdir -p /tmp/v2.0.1-source
-          git show v2.0.1:firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino > /tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino
+          rm -rf /tmp/ESP32_Smart_Relay_Controller
+          mkdir -p /tmp/ESP32_Smart_Relay_Controller
+          git show v2.0.1:firmware/v2.0.1/ESP32_Smart_Relay_Controller.ino > /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
 
       - name: Apply 8-channel hardware GPIO mapping
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p = Path('/tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino')
+          p = Path('/tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino')
           s = p.read_text(encoding='utf-8')
           old = '''const uint8_t relayPins[RELAY_COUNT] = {\n  5,\n  17,\n  16,\n  4\n};'''
           new = '''const uint8_t relayPins[RELAY_COUNT] = {\n  19,\n  18,\n  5,\n  17\n};'''
@@ -46,14 +47,13 @@ jobs:
 
       - name: Validate hardware-test source
         run: |
-          if grep -nE '^<<<<<<<|^=======|^>>>>>>>' /tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino; then exit 1; fi
-          grep -q '#include <ArduinoOTA.h>' /tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino
-          grep -q 'struct ScheduleSlot {' /tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino
-          grep -q 'const uint8_t relayPins\[RELAY_COUNT\] = {' /tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino
-          grep -q '^  19,$' /tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino
-          grep -q '^  18,$' /tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino
-          grep -q '^  5,$' /tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino
-          grep -q '^  17$' /tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino
+          if grep -nE '^<<<<<<<|^=======|^>>>>>>>' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino; then exit 1; fi
+          grep -q '#include <ArduinoOTA.h>' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          grep -q 'struct ScheduleSlot {' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          grep -q '^  19,$' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          grep -q '^  18,$' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          grep -q '^  5,$' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          grep -q '^  17$' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
 
       - name: Install Arduino CLI
         run: |
@@ -74,7 +74,7 @@ jobs:
         run: |
           rm -rf build
           mkdir -p build/firmware
-          arduino-cli compile --fqbn esp32:esp32:esp32 --warnings all --output-dir build/firmware /tmp/v2.0.1-source
+          arduino-cli compile --fqbn esp32:esp32:esp32 --warnings all --output-dir build/firmware /tmp/ESP32_Smart_Relay_Controller
 
       - name: Publish build summary
         run: |
@@ -90,7 +90,7 @@ jobs:
       - name: Package test files
         run: |
           mkdir -p artifact
-          cp /tmp/v2.0.1-source/ESP32_Smart_Relay_Controller.ino artifact/ESP32_Smart_Relay_Controller_8ch_Test.ino
+          cp /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino artifact/ESP32_Smart_Relay_Controller_8ch_Test.ino
           cp build/firmware/*.bin artifact/
           sha256sum artifact/* > artifact/SHA256SUMS.txt
 
