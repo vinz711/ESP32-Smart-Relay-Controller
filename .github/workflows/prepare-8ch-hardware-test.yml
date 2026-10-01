@@ -77,6 +77,100 @@ jobs:
           p.write_text(s.replace(old, new, 1), encoding='utf-8')
           PY
 
+      - name: Apply Wi-Fi recovery and dashboard error fixes
+        env:
+          WIFI_SSID: ${{ secrets.WIFI_SSID }}
+          WIFI_PASSWORD: ${{ secrets.WIFI_PASSWORD }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          import re
+
+          p = Path('/tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino')
+          s = p.read_text(encoding='utf-8')
+
+          ssid = os.environ.get('WIFI_SSID', '')
+          password = os.environ.get('WIFI_PASSWORD', '')
+          if not ssid or not password:
+              raise SystemExit('WIFI_SSID and WIFI_PASSWORD repository secrets are required for the hardware-test build.')
+
+          # Inject credentials only into the generated firmware source. They are
+          # never written to the repository source or workflow file.
+          s, count = re.subn(
+              r'const char\* DEFAULT_WIFI_SSID = "[^"]*";\nconst char\* DEFAULT_WIFI_PASSWORD = "[^"]*";',
+              lambda m: 'const char* DEFAULT_WIFI_SSID = "' + ssid.replace('\\', '\\\\').replace('"', '\\"') + '";\n'
+                        'const char* DEFAULT_WIFI_PASSWORD = "' + password.replace('\\', '\\\\').replace('"', '\\"') + '";',
+              s,
+              count=1
+          )
+          if count != 1:
+              raise SystemExit('Default Wi-Fi credential block was not found; refusing to build.')
+
+          # If NVS contains an empty SSID/password, fall back to the compiled
+          # defaults. This prevents a stale empty Preferences value from
+          # overriding the valid hardware-test credentials.
+          old = '''  wifiSSID = prefs.getString("ssid", DEFAULT_WIFI_SSID);\n  wifiPassword = prefs.getString("pass", DEFAULT_WIFI_PASSWORD);'''
+          new = '''  wifiSSID = prefs.getString("ssid", "");\n  wifiPassword = prefs.getString("pass", "");\n  if (wifiSSID.length() == 0) wifiSSID = DEFAULT_WIFI_SSID;\n  if (wifiPassword.length() == 0) wifiPassword = DEFAULT_WIFI_PASSWORD;'''
+          if old not in s:
+              raise SystemExit('Wi-Fi Preferences load block was not found.')
+          s = s.replace(old, new, 1)
+
+          # Make initial connection retry longer and configure automatic STA reconnect.
+          old = '''  WiFi.mode(WIFI_STA);\n\n  WiFi.begin(\n    wifiSSID.c_str(),\n    wifiPassword.c_str()\n  );'''
+          new = '''  WiFi.mode(WIFI_STA);\n  WiFi.setAutoReconnect(true);\n  WiFi.persistent(false);\n\n  WiFi.begin(\n    wifiSSID.c_str(),\n    wifiPassword.c_str()\n  );'''
+          if old not in s:
+              raise SystemExit('Wi-Fi initialization block was not found.')
+          s = s.replace(old, new, 1)
+
+          # Add a periodic recovery loop without blocking normal web/relay work.
+          marker = '// ============================================================\n// JSON STATUS'
+          recovery = '''unsigned long lastWiFiReconnectAttempt = 0;\n\nvoid maintainWiFi() {\n  if (WiFi.status() == WL_CONNECTED) return;\n  if (wifiSSID.length() == 0) return;\n\n  unsigned long now = millis();\n  if (now - lastWiFiReconnectAttempt < 15000UL) return;\n  lastWiFiReconnectAttempt = now;\n\n  Serial.println("Wi-Fi disconnected - attempting reconnect...");\n  WiFi.disconnect(false, false);\n  delay(100);\n  WiFi.begin(wifiSSID.c_str(), wifiPassword.c_str());\n}\n\n'''
+          if marker not in s:
+              raise SystemExit('JSON STATUS marker was not found.')
+          s = s.replace(marker, recovery + marker, 1)
+
+          # The browser should distinguish transport failure from an API/UI exception.
+          old = '''function loadStatus() {\n\n  fetch("/api/status")\n\n  .then(response => response.json())\n\n  .then(data => {\n\n    DATA = data;\n\n    render();\n\n  })\n\n  .catch(() => {\n\n    $("connection").textContent =\n      "Disconnected";\n\n    $("systemStatus").innerHTML =\n      "<span style='color:#f23845'>● ESP32 disconnected</span>";\n\n  });'''
+          new = '''function loadStatus() {\n\n  fetch("/api/status", { cache: "no-store" })\n\n  .then(async response => {\n    const text = await response.text();\n    if (!response.ok) throw new Error(text || ("HTTP " + response.status));\n    try {\n      return JSON.parse(text);\n    } catch (e) {\n      throw new Error("Invalid status response from ESP32");\n    }\n  })\n\n  .then(data => {\n    DATA = data;\n    DATA.connected = true;\n    try {\n      render();\n      loadPowerSettings();\n    } catch (e) {\n      console.error("Dashboard render error:", e);\n    }\n  })\n\n  .catch(error => {\n    if (DATA) {\n      DATA.connected = false;\n      try { render(); } catch (e) {}\n    }\n    $("connection").textContent = "Disconnected";\n    $("systemStatus").innerHTML =\n      "<span style='color:#f23845'>● ESP32 disconnected</span>";\n    console.error("ESP32 status request failed:", error);\n  });'''
+          if old not in s:
+              raise SystemExit('loadStatus() block was not found.')
+          s = s.replace(old, new, 1)
+
+          # Use actual reachability for the UI status instead of transient Wi-Fi.status().
+          s = s.replace('DATA.wifi\n      ? "Connected"\n      : "Disconnected";', 'DATA.connected\n      ? "Connected"\n      : "Disconnected";', 1)
+          s = s.replace('(DATA.wifi ? "Connected" : "Disconnected")', '(DATA.connected ? "Connected" : "Disconnected")', 1)
+          s = s.replace('$("systemStatus").innerHTML = DATA.wifi', '$("systemStatus").innerHTML = DATA.connected', 1)
+
+          old = '''function savePowerSettings() {\n  let params = new URLSearchParams();\n\n  for (let i = 0; i < 4; i++) {\n    let input = $("wattage" + (i + 1));\n    let value = Number(input ? input.value : 0);\n    if (!Number.isFinite(value) || value < 0) value = 0;\n    params.append("watt" + (i + 1), value);\n  }\n\n  let tariff = Number($("tariff") ? $("tariff").value : 0);\n  if (!Number.isFinite(tariff) || tariff < 0) tariff = 0;\n  params.append("tariff", tariff);\n\n  fetch("/api/power", {\n    method: "POST",\n    headers: {\n      "Content-Type": "application/x-www-form-urlencoded"\n    },\n    body: params.toString()\n  })\n  .then(response => {\n    if (!response.ok) throw new Error("Power settings failed");\n    return response.json();\n  })\n  .then(data => {\n    DATA = data;\n    render();\n  })\n  .catch(() => {\n    $("systemStatus").innerHTML =\n      "<span style='color:#f23845'>● Failed to save power settings</span>";\n  });\n}'''
+          new = '''function savePowerSettings() {\n  let params = new URLSearchParams();\n\n  for (let i = 0; i < 4; i++) {\n    let input = $("wattage" + (i + 1));\n    let value = Number(input ? input.value : 0);\n    if (!Number.isFinite(value) || value < 0) value = 0;\n    params.append("watt" + (i + 1), value);\n  }\n\n  let tariff = Number($("tariff") ? $("tariff").value : 0);\n  if (!Number.isFinite(tariff) || tariff < 0) tariff = 0;\n  params.append("tariff", tariff);\n\n  fetch("/api/power", {\n    method: "POST",\n    cache: "no-store",\n    headers: {\n      "Content-Type": "application/x-www-form-urlencoded"\n    },\n    body: params.toString()\n  })\n  .then(async response => {\n    const text = await response.text();\n    if (!response.ok) throw new Error(text || ("HTTP " + response.status));\n    try {\n      return JSON.parse(text);\n    } catch (e) {\n      throw new Error("ESP32 saved the request but returned an invalid JSON response");\n    }\n  })\n  .then(data => {\n    DATA = data;\n    DATA.connected = true;\n    try {\n      render();\n      loadPowerSettings();\n    } catch (e) {\n      console.error("Dashboard render error after power save:", e);\n    }\n    $("systemStatus").innerHTML =\n      "<span style='color:#08b95c'>● Power settings saved</span>";\n  })\n  .catch(error => {\n    $("systemStatus").innerHTML =\n      "<span style='color:#f23845'>● Power settings failed: " + escapeHtml(error.message || "Unknown error") + "</span>";\n    console.error("Power settings request failed:", error);\n  });\n}'''
+          if old not in s:
+              raise SystemExit('savePowerSettings() block was not found.')
+          s = s.replace(old, new, 1)
+
+          # Make Emergency OFF visually and functionally distinct from the normal buttons.
+          old = '''.btn-schedule {\n\n  background:var(--card);\n\n  color:var(--text);\n\n  border:\n    1px solid\n    var(--border);\n}'''
+          new = '''.btn-schedule {\n\n  background:var(--card);\n\n  color:var(--text);\n\n  border:\n    1px solid\n    var(--border);\n}\n\n.btn-emergency {\n  background:#fff5f5;\n  color:#d62828 !important;\n  border:1px solid #ff8a8a !important;\n}\n\n.btn-emergency:hover {\n  background:#ffe3e3;\n}\n\n.btn-emergency:disabled {\n  opacity:.55;\n  cursor:not-allowed;\n}'''
+          if old not in s:
+              raise SystemExit('Emergency button CSS anchor was not found.')
+          s = s.replace(old, new, 1)
+
+          old = '${relay.emergency ? `<button class="btn btn-off" onclick="resumeRelay(${relay.id})">▶ Resume AUTO</button>` : `<button class="btn" style="border:1px solid #ff8a8a" onclick="emergencyOff(${relay.id})">🚨 Emergency OFF</button>`}'
+          new = '${relay.emergency ? `<button class="btn btn-off btn-emergency" onclick="resumeRelay(${relay.id})">▶ Resume AUTO</button>` : `<button class="btn btn-emergency" onclick="emergencyOff(${relay.id})">🚨 Emergency OFF</button>`}'
+          if old not in s:
+              raise SystemExit('Emergency button HTML was not found.')
+          s = s.replace(old, new, 1)
+
+          # Call recovery from the main loop.
+          old = '''void loop() {\n  server.handleClient();\n  ArduinoOTA.handle();\n  processSchedules();\n  delay(2);\n}'''
+          new = '''void loop() {\n  server.handleClient();\n  ArduinoOTA.handle();\n  maintainWiFi();\n  processSchedules();\n  delay(2);\n}'''
+          if old not in s:
+              raise SystemExit('loop() block was not found.')
+          s = s.replace(old, new, 1)
+
+          p.write_text(s, encoding='utf-8')
+          PY
+
       - name: Validate hardware-test source
         run: |
           if grep -nE '^<<<<<<<|^=======|^>>>>>>>' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino; then exit 1; fi
@@ -93,6 +187,9 @@ jobs:
           grep -q 'summaryNext' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
           grep -q '"tariff"' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
           grep -q '"wattage"' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          grep -q 'maintainWiFi' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          grep -q 'Power settings saved' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          grep -q 'btn-emergency' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
 
       - name: Install Arduino CLI
         run: |
@@ -124,6 +221,8 @@ jobs:
           echo "- OTA: ArduinoOTA included" >> "$GITHUB_STEP_SUMMARY"
           echo "- Dashboard summary cards: runtime, power, energy and next schedule enabled" >> "$GITHUB_STEP_SUMMARY"
           echo "- Power telemetry: wattage and tariff included in /api/status" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Wi-Fi: automatic reconnect and compiled test credentials" >> "$GITHUB_STEP_SUMMARY"
+          echo "- UI: real API errors and Emergency OFF button styling" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           ls -lh build/firmware >> "$GITHUB_STEP_SUMMARY"
           sha256sum build/firmware/* >> "$GITHUB_STEP_SUMMARY"
@@ -144,5 +243,5 @@ jobs:
           if gh release view "$TEST_TAG" >/dev/null 2>&1; then
             gh release delete "$TEST_TAG" --yes --cleanup-tag
           fi
-          gh release create "$TEST_TAG" --target "$GITHUB_SHA" --prerelease --title "v2.0.1 8CH Hardware Test" --notes "Temporary hardware-test build. Based on v2.0.1 with GPIO mapping R1=19, R2=18, R3=5, R4=17 and dashboard summary/power telemetry fixes. Not an official release."
+          gh release create "$TEST_TAG" --target "$GITHUB_SHA" --prerelease --title "v2.0.1 8CH Hardware Test" --notes "Temporary hardware-test build. Based on v2.0.1 with GPIO mapping R1=19, R2=18, R3=5, R4=17, Wi-Fi recovery, dashboard/API error handling and Emergency OFF UI fixes. Not an official release."
           gh release upload "$TEST_TAG" "$GITHUB_WORKSPACE"/artifact/* --clobber
