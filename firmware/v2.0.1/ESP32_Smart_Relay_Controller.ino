@@ -1545,6 +1545,15 @@ body.dark .runtime {
   font-weight:700;
 }
 
+.btn-emergency {
+  background:#fff5f5;
+  color:#c92f3d;
+  border:1px solid #ff8a8a;
+  min-height:40px;
+  white-space:nowrap;
+  font-weight:700;
+}
+
 .btn-schedule {
 
   background:var(--card);
