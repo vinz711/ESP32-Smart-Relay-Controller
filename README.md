@@ -41,7 +41,7 @@ The validated hardware configuration uses an ESP32 development board and a 4-cha
 
 The project uses the following 4-channel relay configuration as its validated hardware baseline:
 
-![ESP32 Smart Relay Controller — 4-channel relay hardware](docs/images/esp32-4-channel-relay.jpg)
+![ESP32 Smart Relay Controller — 4-channel relay hardware](docs/esp32-4-channel-relay.jpg)
 
 | Relay | ESP32 GPIO |
 |---:|---:|
