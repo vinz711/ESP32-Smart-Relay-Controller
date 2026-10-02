@@ -6,10 +6,10 @@ Stable 4-relay aquarium-controller baseline.
 
 | Relay | GPIO |
 |---:|---:|
-| 1 | 19 |
-| 2 | 18 |
-| 3 | 5 |
-| 4 | 17 |
+| 1 | 5 |
+| 2 | 17 |
+| 3 | 16 |
+| 4 | 4 |
 
 Relay board logic is active-LOW.
 
