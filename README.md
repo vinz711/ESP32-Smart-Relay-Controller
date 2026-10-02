@@ -39,12 +39,12 @@ The validated hardware configuration uses an ESP32 development board and a 4-cha
 
 | Relay | ESP32 GPIO |
 |---:|---:|
-| 1 | GPIO 19 |
-| 2 | GPIO 18 |
-| 3 | GPIO 5 |
-| 4 | GPIO 17 |
+| 1 | GPIO 5 |
+| 2 | GPIO 17 |
+| 3 | GPIO 16 |
+| 4 | GPIO 4 |
 
-**Do not assume other GPIO mappings are validated.** The 8-channel test work from earlier development is not part of the stable release.
+**These GPIOs are the validated 4-channel relay mapping for the current hardware.** Earlier 8-channel development used a different mapping and is not the stable hardware baseline.
 
 > **Safety:** The ESP32 GPIOs control the low-voltage relay inputs. Any mains-voltage wiring must use suitable isolation, enclosure, protection, fusing, wire sizing, and components rated for the load, and should be installed by a qualified person. Software wattage values are estimates and are not electrical safety ratings.
 
@@ -99,7 +99,7 @@ The controller exposes Arduino OTA support after network initialization. Keep th
 
 ## CI
 
-GitHub Actions validates that the current v3.2.8 firmware compiles for the ESP32 target. CI compilation does not replace physical hardware validation.
+GitHub Actions validates that the current v3.2.8 firmware compiles for the ESP32 target and checks the validated 4-way GPIO mapping (`5, 17, 16, 4`). CI compilation does not replace physical hardware validation.
 
 ## Repository structure
 
@@ -108,7 +108,7 @@ ESP32-Smart-Relay-Controller/
 ├── firmware/       # versioned firmware
 ├── docs/            # user and developer documentation
 ├── hardware/       # board and wiring references
-├── profiles/        # reusable application configuration examples
+├── profiles/       # reusable application configuration examples
 ├── examples/        # application examples
 └── .github/         # repository automation
 ```
