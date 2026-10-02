@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - remove-personal-name-v3.2.8
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -17,9 +20,9 @@ jobs:
         run: |
           git init .
           git remote add origin "https://github.com/${{ github.repository }}.git"
-          git fetch --depth=1 origin "${{ github.sha }}"
+          git fetch --depth=1 origin "${{ github.event.pull_request.head.sha || github.sha }}"
           git checkout --detach FETCH_HEAD
-          git switch -c "${{ github.ref_name }}"
+          git switch -c "${{ github.head_ref || github.ref_name }}"
 
       - name: Remove personal name only
         run: |
@@ -41,4 +44,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add firmware/v3.2.8/ESP32_Smart_Relay_Controller.ino
           git commit -m "Remove personal name from v3.2.8 firmware"
-          git push origin HEAD:${{ github.ref_name }}
+          git push origin HEAD:${{ github.head_ref || github.ref_name }}
