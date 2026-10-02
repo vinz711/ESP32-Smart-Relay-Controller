@@ -1,0 +1,44 @@
+name: Remove Personal Branding
+
+on:
+  push:
+    branches:
+      - remove-personal-name-v3.2.8
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: ${{ !contains(github.event.head_commit.message, 'Remove personal name from v3.2.8 firmware') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout branch
+        run: |
+          git init .
+          git remote add origin "https://github.com/${{ github.repository }}.git"
+          git fetch --depth=1 origin "${{ github.sha }}"
+          git checkout --detach FETCH_HEAD
+          git switch -c "${{ github.ref_name }}"
+
+      - name: Remove personal name only
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('firmware/v3.2.8/ESP32_Smart_Relay_Controller.ino')
+          s = p.read_text(encoding='utf-8')
+          s2 = s.replace("VINAY'S AQUARIUM CONTROLLER - v3.2.8", "AQUARIUM CONTROLLER - v3.2.8")
+          s2 = s2.replace("Serial.println(\"Vinay's Aquarium Controller v3.2.8\");", "Serial.println(\"Aquarium Controller v3.2.8\");")
+          if s2 == s:
+              raise SystemExit('Expected personal-name references were not found; stopping without changes.')
+          p.write_text(s2, encoding='utf-8')
+          PY
+          git diff -- firmware/v3.2.8/ESP32_Smart_Relay_Controller.ino
+
+      - name: Commit branding-only change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firmware/v3.2.8/ESP32_Smart_Relay_Controller.ino
+          git commit -m "Remove personal name from v3.2.8 firmware"
+          git push origin HEAD:${{ github.ref_name }}
