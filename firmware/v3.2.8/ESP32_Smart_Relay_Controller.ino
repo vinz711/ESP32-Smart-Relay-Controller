@@ -1,5 +1,5 @@
 /*
-  VINAY'S AQUARIUM CONTROLLER - v3.2.8
+  AQUARIUM CONTROLLER - v3.2.8
   ESP32 4-Channel Relay + Smart Management UI
 
   Tested baseline preserved from v2.0.1:
@@ -1052,7 +1052,7 @@ void handleReset(){for(int i=0;i<RELAY_COUNT;i++)setRelayHardware(i,false);Littl
 void setup(){
   bootMillis=millis();
   Serial.begin(115200);delay(300);
-  Serial.println("\n====================================");Serial.println("Vinay's Aquarium Controller v3.2.8");Serial.println("====================================");
+  Serial.println("\n====================================");Serial.println("Aquarium Controller v3.2.8");Serial.println("====================================");
 
   // Startup safety: every relay OFF before Wi-Fi/settings initialization.
   for(int i=0;i<RELAY_COUNT;i++){pinMode(relayPins[i],OUTPUT);digitalWrite(relayPins[i],RELAY_OFF);}
