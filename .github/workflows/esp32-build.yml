@@ -42,7 +42,7 @@ jobs:
             exit 1
           fi
           grep -q '#define FW_VERSION "3.2.8"' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
-          grep -q 'const uint8_t relayPins\[RELAY_COUNT\] = {19, 18, 5, 17};' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          grep -q 'const uint8_t relayPins\[RELAY_COUNT\] = {5, 17, 16, 4};' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
           if grep -nE 'DEFAULT_WIFI_PASSWORD = "[^" ]+"|DEFAULT_WIFI_SSID = "[^" ]+"' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino; then
             echo "Potential personal Wi-Fi credential found in source."
             exit 1
@@ -65,7 +65,7 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- Firmware: **v3.2.8**" >> "$GITHUB_STEP_SUMMARY"
           echo "- Board: \`esp32:esp32:esp32\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- GPIO: **R1=19, R2=18, R3=5, R4=17**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- GPIO: **R1=5, R2=17, R3=16, R4=4**" >> "$GITHUB_STEP_SUMMARY"
           echo "- Hardware status: **validated 4-relay baseline**" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo '```text' >> "$GITHUB_STEP_SUMMARY"
