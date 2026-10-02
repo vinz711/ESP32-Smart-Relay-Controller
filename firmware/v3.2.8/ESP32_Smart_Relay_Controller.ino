@@ -1,12 +1,12 @@
 /*
-  AQUARIUM CONTROLLER - v3.2.8
+  VINAY'S AQUARIUM CONTROLLER - v3.2.8
   ESP32 4-Channel Relay + Smart Management UI
 
   Tested baseline preserved from v2.0.1:
-    Relay 1 -> GPIO 19
-    Relay 2 -> GPIO 18
-    Relay 3 -> GPIO 5
-    Relay 4 -> GPIO 17
+    Relay 1 -> GPIO 5
+    Relay 2 -> GPIO 17
+    Relay 3 -> GPIO 16
+    Relay 4 -> GPIO 4
     Active LOW: LOW = ON, HIGH = OFF
 
   Features:
@@ -67,7 +67,7 @@ const char* FALLBACK_AP_PASSWORD = "change-me";
 
 // ---------------- RELAY PINS ----------------
 // SAME mapping as the tested v2.0.1 board.
-const uint8_t relayPins[RELAY_COUNT] = {19, 18, 5, 17};
+const uint8_t relayPins[RELAY_COUNT] = {5, 17, 16, 4};
 
 // Active LOW relay board
 const uint8_t RELAY_ON = LOW;
@@ -1052,7 +1052,7 @@ void handleReset(){for(int i=0;i<RELAY_COUNT;i++)setRelayHardware(i,false);Littl
 void setup(){
   bootMillis=millis();
   Serial.begin(115200);delay(300);
-  Serial.println("\n====================================");Serial.println(" Aquarium Controller v3.2.8");Serial.println("====================================");
+  Serial.println("\n====================================");Serial.println("Vinay's Aquarium Controller v3.2.8");Serial.println("====================================");
 
   // Startup safety: every relay OFF before Wi-Fi/settings initialization.
   for(int i=0;i<RELAY_COUNT;i++){pinMode(relayPins[i],OUTPUT);digitalWrite(relayPins[i],RELAY_OFF);}
