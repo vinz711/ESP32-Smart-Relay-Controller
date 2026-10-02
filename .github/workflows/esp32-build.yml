@@ -12,11 +12,9 @@ jobs:
 
     steps:
       - name: Checkout repository
-        run: |
-          git init .
-          git remote add origin "https://github.com/${{ github.repository }}.git"
-          git fetch --depth=1 origin "${{ github.sha }}"
-          git checkout --detach FETCH_HEAD
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Install Arduino CLI
         run: |
@@ -33,6 +31,7 @@ jobs:
         run: |
           rm -rf /tmp/ESP32_Smart_Relay_Controller
           mkdir -p /tmp/ESP32_Smart_Relay_Controller
+          test -f firmware/v3.2.8/ESP32_Smart_Relay_Controller.ino
           cp firmware/v3.2.8/ESP32_Smart_Relay_Controller.ino /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
 
       - name: Validate source
