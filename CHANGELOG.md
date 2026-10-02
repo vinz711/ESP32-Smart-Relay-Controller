@@ -5,7 +5,7 @@ All notable changes to this project are documented here.
 ## v3.2.8 — Stable 4-Relay Aquarium Controller
 
 - Promoted the validated 4-relay aquarium controller to the stable baseline.
-- GPIO mapping: R1=19, R2=18, R3=5, R4=17.
+- GPIO mapping: R1=5, R2=17, R3=16, R4=4.
 - Preserved fast manual relay response.
 - Fixed automatic schedule execution and schedule boundary handling.
 - Added reliable IST time handling for scheduling and activity logs.
