@@ -13,10 +13,11 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          git init .
+          git remote add origin "https://github.com/${{ github.repository }}.git"
+          git fetch --depth=1 origin "${{ github.sha }}"
+          git checkout --detach FETCH_HEAD
 
       - name: Install Arduino CLI
         run: |
