@@ -37,6 +37,12 @@ A Wi-Fi-enabled ESP32 relay controller with a responsive web dashboard, scheduli
 
 The validated hardware configuration uses an ESP32 development board and a 4-channel active-LOW relay board.
 
+### 4-channel relay hardware
+
+The project uses the following 4-channel relay configuration as its validated hardware baseline:
+
+![ESP32 Smart Relay Controller — 4-channel relay hardware](docs/images/esp32-4-channel-relay.jpg)
+
 | Relay | ESP32 GPIO |
 |---:|---:|
 | 1 | GPIO 5 |
