@@ -6,12 +6,12 @@ The stable v3.2.8 baseline targets an ESP32 development board connected to a 4-c
 
 | Relay | GPIO |
 |---:|---:|
-| 1 | 19 |
-| 2 | 18 |
-| 3 | 5 |
-| 4 | 17 |
+| 1 | 5 |
+| 2 | 17 |
+| 3 | 16 |
+| 4 | 4 |
 
-The mapping above is the validated configuration for the current hardware baseline.
+The mapping above is the validated configuration for the current v3.2.8 hardware baseline.
 
 ## Board setup
 
@@ -24,3 +24,5 @@ The mapping above is the validated configuration for the current hardware baseli
 ## Important
 
 Do not connect mains voltage directly to ESP32 GPIOs. Use an appropriately rated relay module, enclosure, isolation and protection. Verify the relay board's electrical interface before connecting loads.
+
+Other ESP32 or relay-board variants may require a different GPIO mapping and must be documented and validated separately.
