@@ -10,6 +10,20 @@ on:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: stable-4ch
+            path: firmware/v3.2.8
+            version: 3.2.8
+            gpio: "5,17,16,4"
+            hardware: "4-relay stable baseline"
+          - name: development-8ch
+            path: firmware/v3.3.0
+            version: 3.3.0
+            gpio: "19,18,5,17,32,33,25,14"
+            hardware: "8-relay development baseline"
 
     steps:
       - name: Checkout repository
@@ -30,26 +44,31 @@ jobs:
           arduino-cli core update-index
           arduino-cli core install esp32:esp32
 
-      - name: Prepare stable firmware
+      - name: Prepare firmware
         run: |
           rm -rf /tmp/ESP32_Smart_Relay_Controller
           mkdir -p /tmp/ESP32_Smart_Relay_Controller
-          test -f firmware/v3.2.8/ESP32_Smart_Relay_Controller.ino
-          cp firmware/v3.2.8/ESP32_Smart_Relay_Controller.ino /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          test -f "${{ matrix.path }}/ESP32_Smart_Relay_Controller.ino"
+          cp "${{ matrix.path }}/ESP32_Smart_Relay_Controller.ino" /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
 
       - name: Validate source
         run: |
-          if grep -nE '^<<<<<<<|^=======|^>>>>>>>' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino; then
+          FW=/tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+
+          if grep -nE '^<<<<<<<|^=======|^>>>>>>>' "$FW"; then
             echo "Merge conflict markers found."
             exit 1
           fi
-          grep -q '#define FW_VERSION "3.2.8"' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
-          grep -q 'const uint8_t relayPins\[RELAY_COUNT\] = {5, 17, 16, 4};' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
-          if grep -nE 'DEFAULT_WIFI_PASSWORD = "[^" ]+"|DEFAULT_WIFI_SSID = "[^" ]+"' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino; then
+
+          grep -q '#define FW_VERSION "${{ matrix.version }}"' "$FW"
+          grep -q 'const uint8_t relayPins\[RELAY_COUNT\] = {${{ matrix.gpio }});' "$FW"
+
+          if grep -nE 'DEFAULT_WIFI_PASSWORD = "[^" ]+"|DEFAULT_WIFI_SSID = "[^" ]+"' "$FW"; then
             echo "Potential personal Wi-Fi credential found in source."
             exit 1
           fi
-          echo "v3.2.8 source validation passed."
+
+          echo "${{ matrix.version }} source validation passed."
 
       - name: Compile firmware
         run: |
@@ -63,12 +82,12 @@ jobs:
 
       - name: Publish build summary
         run: |
-          echo "## ESP32 Smart Relay Controller v3.2.8" >> "$GITHUB_STEP_SUMMARY"
+          echo "## ESP32 Smart Relay Controller v${{ matrix.version }}" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Firmware: **v3.2.8**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Firmware: **v${{ matrix.version }}**" >> "$GITHUB_STEP_SUMMARY"
           echo "- Board: \`esp32:esp32:esp32\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- GPIO: **R1=5, R2=17, R3=16, R4=4**" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Hardware status: **validated 4-relay baseline**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- GPIO: **${{ matrix.gpio }}**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Hardware status: **${{ matrix.hardware }}**" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo '```text' >> "$GITHUB_STEP_SUMMARY"
           ls -lh build/firmware >> "$GITHUB_STEP_SUMMARY"
