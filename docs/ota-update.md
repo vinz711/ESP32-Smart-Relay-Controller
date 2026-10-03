@@ -18,9 +18,11 @@ Use the supported USB flashing procedure for the first installation or for recov
 
 ## OTA authentication
 
-The public v3.2.9 source does **not** contain a personal or fixed OTA password. Keep OTA on a trusted local network and do not expose the OTA service directly to the public internet.
+The current v3.2.9 development source uses a fixed development OTA password. This credential is **not suitable for a public or production release** and must be replaced or removed before v3.2.9 is promoted to the stable release.
 
-If OTA authentication is added in a future release, the credential should be provisioned securely and must not be committed to the public repository.
+Keep OTA on a trusted local network and never expose the OTA service directly to the public internet.
+
+For a future release, OTA credentials should be provisioned securely and must not be committed as a reusable fixed credential in the public repository.
 
 ## Safety and recovery
 
@@ -32,7 +34,7 @@ If OTA authentication is added in a future release, the credential should be pro
 
 ## v3.2.9 status
 
-OTA support is part of the v3.2.9 development baseline and must be included in the firmware/CI/hardware validation cycle before v3.2.9 is promoted to the stable release baseline.
+OTA support is part of the v3.2.9 development baseline. The firmware, CI, and physical hardware validation cycle must be completed before v3.2.9 is promoted to the stable release baseline, including replacement/removal of the fixed development OTA credential.
 
 ## Stable baseline
 
