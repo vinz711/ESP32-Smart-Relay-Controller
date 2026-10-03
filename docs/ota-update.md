@@ -34,8 +34,8 @@ Because the current public firmware does not configure OTA authentication, treat
 
 ## v3.2.9 status
 
-OTA support is part of the v3.2.9 development baseline. The firmware, CI, and physical hardware validation cycle must be completed before v3.2.9 is promoted to the stable release baseline.
+OTA support is included in the stable v3.2.9 release. The release was physically validated on the documented 4-channel hardware. Future firmware changes must be validated before being promoted to a new stable release.
 
 ## Stable baseline
 
-Arduino OTA functionality was validated as part of the stable v3.2.8 baseline. Future firmware releases should preserve a recoverable USB installation path and validate OTA behavior before release.
+v3.2.9 is the current stable 4-channel baseline. The published `v3.2.9` tag is immutable. Keep the USB installation/recovery path available for all future OTA-enabled releases.

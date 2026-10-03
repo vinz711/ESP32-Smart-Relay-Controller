@@ -2,15 +2,11 @@
 
 A Wi-Fi-enabled ESP32 relay controller with a responsive Smart Management dashboard, scheduling, runtime/power estimation, persistent activity logging, emergency control, feeding/maintenance pause, backup/restore, and OTA updates.
 
-## Current stable release — v3.2.8
+## Current stable release — v3.2.9
 
-**v3.2.8 is the validated 4-relay aquarium-controller baseline.** It has been physically tested on the current ESP32 + 4-channel relay hardware.
+**v3.2.9 is the validated and released 4-relay Smart Management baseline.** It has been physically tested on the current ESP32 + 4-channel relay hardware, passed CI validation, and is published as the current stable release.
 
-## Next release — v3.2.9
-
-**v3.2.9 is the updated 4-channel Smart Management UI and firmware development baseline.** It keeps the validated 4-channel GPIO mapping and controller architecture while adding the updated dashboard and management features.
-
-### v3.2.9 highlights
+## v3.2.9 highlights
 
 - Updated Smart Management desktop dashboard
 - Responsive mobile dashboard
@@ -33,7 +29,7 @@ A Wi-Fi-enabled ESP32 relay controller with a responsive Smart Management dashbo
 - mDNS support
 - Startup-safe relay initialization
 
-> **Validation:** v3.2.9 is based on the tested 4-channel hardware configuration. The release should be promoted to the stable baseline only after the v3.2.9 firmware/CI/hardware validation cycle is complete.
+**Validation:** v3.2.9 was validated with the 4-channel hardware configuration, firmware CI, and the documented functional test checklist.
 
 ### UI preview
 
@@ -91,16 +87,16 @@ The validated hardware configuration uses an ESP32 development board and a 4-cha
 firmware/
 ├── v1.0.0/   # historical stable baseline
 ├── v2.0.1/   # historical development baseline
-├── v3.2.8/   # validated 4-channel baseline
-└── v3.2.9/   # updated 4-channel Smart Management baseline
+├── v3.2.8/   # previous validated 4-channel baseline
+└── v3.2.9/   # current stable 4-channel Smart Management release
 ```
 
-Historical firmware is retained for traceability. New 4-channel development should start from v3.2.8 and be versioned forward; the separate 8-channel work remains on the v3.3.0 development line.
+Historical firmware is retained for traceability. New work should branch from the current `main` state and use the appropriate next development version. The separate 8-channel work remains on the v3.3.0 development line.
 
 ## Getting started
 
 1. Install Arduino IDE and ESP32 board support.
-2. Open the firmware version you want to validate from `firmware/<version>/`.
+2. Open the firmware version you want to use from `firmware/<version>/`.
 3. Select the appropriate ESP32 board.
 4. Configure Wi-Fi through the controller setup/configuration interface.
 5. Upload by USB for the initial installation.
@@ -142,7 +138,7 @@ The controller exposes Arduino OTA support after network initialization. The pub
 
 ## CI and validation
 
-CI compilation does not replace physical hardware validation. For v3.2.9, validate:
+CI compilation does not replace physical hardware validation. v3.2.9 completed CI and physical hardware validation for:
 
 - 4 relay GPIO operation: `5, 17, 16, 4`
 - Active-LOW relay logic
@@ -175,7 +171,7 @@ ESP32-Smart-Relay-Controller/
 
 ## Development policy
 
-The v3.2.8 firmware remains the known-good validated baseline until v3.2.9 completes its firmware, CI, and hardware validation cycle. The v3.3.0 8-channel development line is maintained separately and must not be mixed with the 4-channel v3.2.9 release.
+v3.2.9 is the current stable 4-channel baseline. The v3.2.9 release tag is immutable. New development must use feature/development branches from the current `main` state and must not mix the separate 8-channel v3.3.0 development line into the stable 4-channel release.
 
 ## License
 
