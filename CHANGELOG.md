@@ -1,5 +1,54 @@
 # Changelog
 
+## [v3.2.9] - 2026-10-03
+
+### Added
+
+- Updated Smart Management desktop dashboard
+- Responsive mobile dashboard
+- Light and dark themes
+- Configurable relay names and icons
+- Temporary manual control
+- Individual Emergency OFF / Resume
+- Emergency ALL OFF / Resume ALL
+- Feeding / Maintenance pause
+- Per-relay power configuration
+- Estimated power and energy display
+- Browser backup and restore
+- Updated system status display
+- Updated persistent activity log interface
+
+### Improved
+
+- Relay control presentation
+- Schedule visibility
+- Next scheduled action display
+- Runtime presentation
+- Power and energy presentation
+- Mobile usability
+- Desktop dashboard layout
+- Activity log usability
+
+### Hardware
+
+- Maintains the validated 4-channel GPIO configuration:
+  - Relay 1 → GPIO 5
+  - Relay 2 → GPIO 17
+  - Relay 3 → GPIO 16
+  - Relay 4 → GPIO 4
+
+### Validation
+
+v3.2.9 is the updated 4-channel Smart Management firmware baseline.
+
+Physical hardware, firmware, CI, OTA, scheduling, emergency control, and responsive UI validation should be completed before promoting this version to the stable release baseline.
+
+### Separation from v3.3.0
+
+The 8-channel relay development remains on the separate v3.3.0 development line and is not part of v3.2.9.
+
+# Changelog
+
 All notable changes to this project are documented here.
 
 ## v3.2.9 — 4-Relay Smart Management UI

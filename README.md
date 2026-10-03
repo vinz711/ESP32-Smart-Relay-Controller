@@ -46,6 +46,24 @@ The v3.2.9 UI is designed around the following sections:
 - System Status: ESP32 connection, IP, RSSI, uptime, network/time information
 - Activity Log: searchable and exportable persistent event history
 
+### v3.2.9 UI screenshots
+
+#### Desktop — Dark Theme
+
+![v3.2.9 Desktop Dark UI](docs/ui/v3.2.9-desktop-dashboard-dark.png)
+
+#### Desktop — Light Theme
+
+![v3.2.9 Desktop Light UI](docs/ui/v3.2.9-desktop-dashboard-light.png)
+
+#### Mobile — Dark Theme
+
+![v3.2.9 Mobile Dark UI](docs/ui/v3.2.9-mobile-dashboard-dark.png)
+
+#### Mobile — Light Theme
+
+![v3.2.9 Mobile Light UI](docs/ui/v3.2.9-mobile-dashboard-light.png)
+
 ## Hardware baseline
 
 The validated hardware configuration uses an ESP32 development board and a 4-channel active-LOW relay board.

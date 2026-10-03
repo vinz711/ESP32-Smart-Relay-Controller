@@ -1,33 +1,88 @@
-# Firmware v3.2.9 — 4-Relay Smart Management
+# ESP32 Smart Relay Controller — v3.2.9
 
-This directory is reserved for the v3.2.9 4-channel Smart Management firmware baseline.
+## Overview
+
+v3.2.9 is the updated 4-channel Smart Management firmware baseline for the ESP32 Smart Relay Controller.
+
+This version retains the validated 4-channel relay architecture and GPIO mapping while providing the updated Smart Management dashboard and control features.
 
 ## Hardware
 
 - ESP32 development board
 - 4-channel active-LOW relay board
-- Relay 1 → GPIO 5
-- Relay 2 → GPIO 17
-- Relay 3 → GPIO 16
-- Relay 4 → GPIO 4
+- 5V relay supply
+- Wi-Fi network
+- Connected electrical loads as required
 
-## Firmware features
+## Relay GPIO Mapping
 
-- Smart Management responsive web UI
+| Relay | ESP32 GPIO |
+|---|---:|
+| Relay 1 | GPIO 5 |
+| Relay 2 | GPIO 17 |
+| Relay 3 | GPIO 16 |
+| Relay 4 | GPIO 4 |
+
+### Relay Logic
+
+The relay board uses active-LOW control.
+
+| GPIO State | Relay |
+|---|---|
+| LOW | ON |
+| HIGH | OFF |
+
+## Features
+
+- 4 independent relay channels
 - AUTO / MANUAL modes
-- Up to 6 schedules per relay
-- Weekday and overnight schedules
+- Multiple schedules per relay
+- Weekday scheduling
+- Overnight schedules
 - Temporary manual control
+- Individual Emergency OFF / Resume
+- Emergency ALL OFF / Resume ALL
 - Feeding / Maintenance pause
-- Emergency OFF / Resume
-- Runtime and estimated power/energy tracking
+- Runtime tracking
 - Persistent activity logging
-- Configurable relay names/icons
+- Per-relay power configuration
+- Estimated power and energy usage
+- Device names and icons
+- Responsive desktop and mobile UI
+- Light and dark themes
 - Wi-Fi configuration
-- Backup/restore
+- Backup / Restore
+- Factory Reset
 - Arduino OTA
-- Light/dark themes
+- mDNS support
+- Safe relay initialization
 
-The firmware source for this version must remain sanitized: do not commit personal Wi-Fi credentials or other secrets.
+## Validation
 
-**Validation status:** development/hardware-validation baseline. v3.2.8 remains the validated stable release until v3.2.9 completes CI and physical hardware validation.
+The firmware should be validated on the physical 4-channel relay hardware for:
+
+- Relay operation
+- GPIO mapping
+- Manual ON/OFF
+- AUTO mode
+- Multiple schedules
+- Weekday scheduling
+- Overnight scheduling
+- Temporary manual control
+- Emergency OFF / Resume
+- Feeding / Maintenance mode
+- Runtime tracking
+- Power estimation
+- Activity logging
+- Wi-Fi configuration
+- Backup / Restore
+- OTA
+- Desktop UI
+- Mobile UI
+- Light / Dark themes
+
+## Version
+
+**Firmware:** v3.2.9
+
+**Hardware:** ESP32 + 4-channel active-LOW relay board
