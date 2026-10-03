@@ -15,6 +15,8 @@ The v3.2.9 4-channel dashboard is organized into the following areas:
 - Per-relay ON/OFF controls
 - Per-relay Schedule and Settings controls
 - Per-relay Emergency OFF / Resume AUTO
+- Emergency ALL OFF / Resume ALL
+- Feeding / Maintenance schedule pause
 - Power Settings with per-device wattage configuration
 - Software-based energy and cost estimation
 - Quick Settings for names/icons, default schedules, Feeding / Maintenance, Wi-Fi, OTA, backup/restore, and factory reset
@@ -34,3 +36,21 @@ The UI remains application-neutral so the same dashboard can control aquarium eq
 ## Power information
 
 Power and energy values shown by the dashboard are software estimates based on configured relay wattage and runtime. The controller does not contain an electrical power sensor.
+
+## Screenshots
+
+### Desktop — Main Dashboard
+
+![v3.2.9 desktop main dashboard](ui/v3.2.9-desktop-dashboard-light01.png)
+
+### Desktop — Power and Activity View
+
+![v3.2.9 desktop power and activity view](ui/v3.2.9-desktop-dashboard-light02.png)
+
+### Mobile — Dark Theme
+
+![v3.2.9 mobile dark dashboard](ui/v3.2.9-mobile-dashboard-dark.png)
+
+### Mobile — Light Theme
+
+![v3.2.9 mobile light dashboard](ui/v3.2.9-mobile-dashboard-light.png)
