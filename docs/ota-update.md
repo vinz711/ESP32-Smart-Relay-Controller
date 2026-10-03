@@ -1,6 +1,6 @@
 # OTA Updates
 
-The v3.2.8 firmware includes Arduino OTA support. OTA can be used for subsequent firmware updates after the device has been installed and is reachable on the local network.
+The v3.2.9 firmware includes Arduino OTA support. OTA can be used for subsequent firmware updates after the device has been installed and is reachable on the local network.
 
 ## Initial installation
 
@@ -8,7 +8,7 @@ Use the supported USB flashing procedure for the first installation or for recov
 
 ## OTA workflow
 
-1. Flash the validated firmware to the ESP32 using USB.
+1. Flash the intended firmware to the ESP32 using USB.
 2. Connect the ESP32 to the configured Wi-Fi network.
 3. Confirm the controller is reachable on the local network.
 4. Build the intended firmware version with Arduino OTA support enabled.
@@ -24,6 +24,10 @@ Use the supported USB flashing procedure for the first installation or for recov
 - Keep a USB recovery path available.
 - Hardware-test firmware changes after OTA when the change affects relay, scheduler, timing, networking, or hardware behavior.
 
-## v3.2.8 status
+## v3.2.9 status
+
+OTA support is part of the v3.2.9 development baseline and must be included in the firmware/CI/hardware validation cycle before v3.2.9 is promoted to the stable release baseline.
+
+## Stable baseline
 
 Arduino OTA functionality was validated as part of the stable v3.2.8 baseline. Future firmware releases should preserve a recoverable USB installation path and validate OTA behavior before release.
