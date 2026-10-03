@@ -16,6 +16,12 @@ Use the supported USB flashing procedure for the first installation or for recov
 6. Wait for the upload and device restart to complete.
 7. Verify the web dashboard and relay operation after reboot.
 
+## OTA authentication
+
+The public v3.2.9 source does **not** contain a personal or fixed OTA password. Keep OTA on a trusted local network and do not expose the OTA service directly to the public internet.
+
+If OTA authentication is added in a future release, the credential should be provisioned securely and must not be committed to the public repository.
+
 ## Safety and recovery
 
 - Do not interrupt power during a firmware update.
