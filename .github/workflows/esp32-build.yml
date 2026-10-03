@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-matrix:
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -102,3 +102,17 @@ jobs:
           echo '```text' >> "$GITHUB_STEP_SUMMARY"
           sha256sum build/firmware/* >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    name: build
+    if: ${{ always() }}
+    needs: build-matrix
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Verify matrix build
+        run: |
+          if [ "${{ needs.build-matrix.result }}" != "success" ]; then
+            echo "Required build matrix did not succeed: ${{ needs.build-matrix.result }}"
+            exit 1
+          fi
+          echo "Required build check passed."
