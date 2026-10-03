@@ -35,11 +35,11 @@ A Wi-Fi-enabled ESP32 relay controller with a responsive web dashboard, scheduli
 
 ## Hardware baseline
 
-The validated hardware configuration uses an ESP32 development board and a 4-channel active-LOW relay board.
+The validated stable hardware configuration uses an ESP32 development board and a 4-channel active-LOW relay board.
 
 ### 4-channel relay hardware
 
-The project uses the following 4-channel relay configuration as its validated hardware baseline:
+The project uses the following 4-channel relay configuration as its validated v3.2.8 hardware baseline:
 
 ![ESP32 Smart Relay Controller — 4-channel relay hardware](docs/esp32-4-channel-relay.jpg)
 
@@ -50,9 +50,56 @@ The project uses the following 4-channel relay configuration as its validated ha
 | 3 | GPIO 16 |
 | 4 | GPIO 4 |
 
-**These GPIOs are the validated 4-channel relay mapping for the current hardware.** Earlier 8-channel development used a different mapping and is not the stable hardware baseline.
+**These GPIOs are the validated 4-channel relay mapping for the current v3.2.8 stable hardware.**
 
 > **Safety:** The ESP32 GPIOs control the low-voltage relay inputs. Any mains-voltage wiring must use suitable isolation, enclosure, protection, fusing, wire sizing, and components rated for the load, and should be installed by a qualified person. Software wattage values are estimates and are not electrical safety ratings.
+
+## 8-channel development baseline — v3.3.0
+
+The repository now contains the validated 8-channel firmware development baseline in `firmware/v3.3.0/`. This expands the controller from four to eight independently configurable relay channels while retaining the tested scheduling, emergency control, runtime/power estimation, activity logging, responsive UI, and OTA functionality.
+
+**v3.3.0 is a development/validation baseline until the 8-channel hardware and CI validation cycle is complete. The v3.2.8 release remains the stable release.**
+
+### 8-channel GPIO mapping
+
+| Relay | ESP32 GPIO |
+|---:|---:|
+| 1 | GPIO 19 |
+| 2 | GPIO 18 |
+| 3 | GPIO 5 |
+| 4 | GPIO 17 |
+| 5 | GPIO 32 |
+| 6 | GPIO 33 |
+| 7 | GPIO 25 |
+| 8 | GPIO 14 |
+
+The 8-channel firmware uses an active-LOW relay board: `LOW = ON`, `HIGH = OFF`.
+
+### 8-channel hardware
+
+![ESP32 Smart Relay Controller — 8-channel relay hardware](docs/images/esp32-8-channel-relay.jpg)
+
+### 8-channel desktop dashboard
+
+The desktop dashboard provides relay status, manual controls, AUTO/MANUAL state, schedules, runtime, power information, system status, quick settings, and activity logging.
+
+![8-channel desktop dashboard](docs/images/ui-desktop-dashboard.jpg)
+
+![8-channel desktop system and activity view](docs/images/ui-desktop-system.jpg)
+
+### Multiple schedules
+
+The scheduler supports multiple schedules per relay, weekday selection, start/stop times, and per-relay configuration.
+
+![8-channel multiple schedules](docs/images/ui-desktop-schedules.jpg)
+
+### Responsive mobile UI
+
+The controller provides a responsive mobile layout and supports both dark and light themes.
+
+![8-channel mobile dashboard — dark theme](docs/images/ui-mobile-dark.png)
+
+![8-channel mobile dashboard — light theme](docs/images/ui-mobile-light.png)
 
 ## Firmware layout
 
@@ -60,12 +107,15 @@ The project uses the following 4-channel relay configuration as its validated ha
 firmware/
 ├── v1.0.0/   # historical stable baseline
 ├── v2.0.1/   # historical development baseline
-└── v3.2.8/   # current validated release
+├── v3.2.8/   # current validated 4-channel stable release
+└── v3.3.0/   # validated 8-channel development baseline
 ```
 
-Historical firmware is retained for traceability. New development should start from v3.2.8 rather than modifying an older baseline.
+Historical firmware is retained for traceability. New 4-channel fixes should start from v3.2.8, while 8-channel development should continue from v3.3.0.
 
 ## Getting started
+
+### Stable 4-channel controller
 
 1. Install Arduino IDE and ESP32 board support.
 2. Open the v3.2.8 firmware from `firmware/v3.2.8/`.
@@ -75,6 +125,10 @@ Historical firmware is retained for traceability. New development should start f
 6. Open the controller web interface using the ESP32 IP address or mDNS hostname when available.
 7. Configure relay names, wattages, schedules, weekdays, and modes.
 8. Use OTA for subsequent firmware updates when the ESP32 is reachable on the network.
+
+### 8-channel development firmware
+
+For the 8-channel development baseline, open `firmware/v3.3.0/ESP32_Smart_Relay_Controller.ino`. The firmware defines eight relay channels using the GPIO mapping documented above.
 
 ### Credentials
 
@@ -105,7 +159,7 @@ The controller exposes Arduino OTA support after network initialization. Keep th
 
 ## CI
 
-GitHub Actions validates that the current v3.2.8 firmware compiles for the ESP32 target and checks the validated 4-way GPIO mapping (`5, 17, 16, 4`). CI compilation does not replace physical hardware validation.
+GitHub Actions validates the supported firmware targets and mapping checks. CI compilation does not replace physical hardware validation.
 
 ## Repository structure
 
@@ -113,15 +167,16 @@ GitHub Actions validates that the current v3.2.8 firmware compiles for the ESP32
 ESP32-Smart-Relay-Controller/
 ├── firmware/       # versioned firmware
 ├── docs/            # user and developer documentation
+│   └── images/     # UI and hardware documentation images
 ├── hardware/       # board and wiring references
 ├── profiles/       # reusable application configuration examples
-├── examples/        # application examples
-└── .github/         # repository automation
+├── examples/       # application examples
+└── .github/        # repository automation
 ```
 
 ## Development policy
 
-The v3.2.8 firmware is the known-good baseline. Bug fixes should preserve the validated relay-control, scheduler, emergency-resume, timing, and UI behavior. New features should be developed as a new version and validated before replacing the stable baseline.
+The v3.2.8 firmware remains the known-good 4-channel stable baseline. The v3.3.0 firmware is the 8-channel development/validation baseline. Bug fixes should preserve validated relay-control, scheduler, emergency-resume, timing, and UI behavior. New features should be developed as a new version and physically validated before replacing a stable baseline.
 
 ## License
 
