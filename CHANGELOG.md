@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented here.
 
+## v3.2.9 — 4-Relay Smart Management UI
+
+- Updated the 4-channel controller to the Smart Management dashboard design.
+- Preserved the validated GPIO mapping: R1=5, R2=17, R3=16, R4=4.
+- Added responsive desktop and mobile UI layouts.
+- Added light/dark theme support.
+- Added summary cards for active relays, runtime, estimated energy, and next scheduled start.
+- Added improved relay cards with status, mode, schedule, next action, temporary control, settings, and emergency controls.
+- Added temporary manual control durations in AUTO mode.
+- Added Feeding / Maintenance schedule pause for selected AUTO relays.
+- Added per-relay power rating editing with software-based energy estimation.
+- Improved system status and network information display.
+- Improved searchable/exportable persistent activity log presentation.
+- Preserved device name/icon configuration, backup/restore, Wi-Fi configuration, and OTA support.
+- Preserved emergency OFF state capture and Resume behavior.
+- Preserved startup-safe relay initialization and active-LOW relay logic.
+- Sanitized firmware defaults so personal Wi-Fi credentials are not committed.
+
+**Validation status:** development/hardware-validation baseline. v3.2.8 remains the validated stable 4-channel release until the v3.2.9 firmware, CI, and physical hardware validation cycle is complete.
+
 ## v3.2.8 — Stable 4-Relay Aquarium Controller
 
 - Promoted the validated 4-relay aquarium controller to the stable baseline.
