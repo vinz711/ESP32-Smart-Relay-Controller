@@ -1,24 +1,20 @@
 # Project Roadmap
 
-This roadmap describes the planned direction of the ESP32 Smart Relay Controller.
+This roadmap describes the planned direction of the ESP32 Smart Relay Controller. The stable v3.2.8 release is the current validated baseline.
 
-## Completed — v3.2.9
+## Completed — v3.2.8
 
-v3.2.9 is the current stable 4-channel Smart Management release. It has been implemented, CI validated, physically tested on the documented 4-channel relay hardware, and published as the stable release.
+The v3.2.8 baseline has been implemented and hardware tested with the 4-channel relay configuration.
 
-- Smart Management desktop dashboard
-- Responsive mobile dashboard
-- Light and dark themes
-- Configurable relay names and icons
+- Responsive web dashboard with relay controls
 - AUTO and MANUAL relay modes
 - Multiple schedules per relay
 - Start/stop times and weekday selection
 - Overnight schedules
-- Temporary manual control
-- Feeding / Maintenance schedule pause
-- Emergency OFF / Resume and Emergency ALL OFF / Resume ALL
+- Scheduler execution on the ESP32
 - Next scheduled action display
 - Activity logging with synchronized local date/time
+- Emergency ALL OFF with restoration of the pre-emergency relay state
 - Runtime tracking and estimated power/energy usage
 - Per-relay power settings and cost estimation
 - Wi-Fi configuration and web-based control
@@ -31,14 +27,22 @@ v3.2.9 is the current stable 4-channel Smart Management release. It has been imp
   - Relay 3: GPIO 16
   - Relay 4: GPIO 4
 - CI firmware validation
-- Physical hardware validation
-- v3.2.9 release/tag publication
+- Final hardware validation
 
-## Current Development Line — v3.3.0
+## Next — v3.2.9+
 
-The 8-channel relay controller is being developed separately from the stable 4-channel v3.2.9 line.
+Future development should begin from `main` using a dedicated feature branch and pull request. Changes should be CI-tested and hardware-tested before becoming part of a release.
 
-The 8-channel work uses a different GPIO mapping and requires its own CI and physical hardware-validation cycle before release.
+Potential areas for the next development cycle include:
+
+- Further dashboard and UI/UX refinement
+- Additional diagnostics and system-status information
+- Improved monitoring and troubleshooting support
+- Expanded hardware-specific configuration profiles
+- Additional ESP32 and relay-board compatibility
+- Documentation and installation improvements
+
+These items are candidates for future development and are not commitments to a particular release date or implementation order.
 
 ## Future Direction
 
@@ -50,14 +54,13 @@ Longer-term development may include:
 - Additional automation and integration options
 - Further reliability and maintainability improvements
 
-Future features should preserve the stable behavior established by v3.2.9.
+Future features should preserve the stable behavior established by the validated v3.2.8 baseline.
 
 ## Development Policy
 
-- Do not modify published release tags.
-- Start new work from the current `main` state in a dedicated feature or development branch.
-- Keep the v3.3.0 8-channel line separate from the stable 4-channel release.
+- Do not modify the published `v3.2.8` tag.
+- Start new work from `main` in a feature branch such as `feature/v3.2.9-<feature>`.
 - Use pull requests for changes to `main`.
 - Require CI validation before merging.
 - Perform hardware validation for firmware or hardware-related changes.
-- Create a new versioned release only after the relevant changes have been validated.
+- Create a new versioned release after the relevant changes have been validated.
