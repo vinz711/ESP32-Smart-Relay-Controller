@@ -18,11 +18,11 @@ Use the supported USB flashing procedure for the first installation or for recov
 
 ## OTA authentication
 
-The current v3.2.9 development source uses a fixed development OTA password. This credential is **not suitable for a public or production release** and must be replaced or removed before v3.2.9 is promoted to the stable release.
+The public v3.2.9 source does **not** contain a fixed or reusable OTA password. Do not add a shared password, Wi-Fi credential, token, or other secret directly to the firmware source.
 
-Keep OTA on a trusted local network and never expose the OTA service directly to the public internet.
+OTA should be used only on a trusted local network. Do not expose the OTA service directly to the public internet.
 
-For a future release, OTA credentials should be provisioned securely and must not be committed as a reusable fixed credential in the public repository.
+Because the current public firmware does not configure OTA authentication, treat LAN access to the ESP32 as trusted administrative access and keep the controller behind the home/network firewall.
 
 ## Safety and recovery
 
@@ -34,7 +34,7 @@ For a future release, OTA credentials should be provisioned securely and must no
 
 ## v3.2.9 status
 
-OTA support is part of the v3.2.9 development baseline. The firmware, CI, and physical hardware validation cycle must be completed before v3.2.9 is promoted to the stable release baseline, including replacement/removal of the fixed development OTA credential.
+OTA support is part of the v3.2.9 development baseline. The firmware, CI, and physical hardware validation cycle must be completed before v3.2.9 is promoted to the stable release baseline.
 
 ## Stable baseline
 
