@@ -61,7 +61,12 @@ jobs:
           fi
 
           grep -q '#define FW_VERSION "${{ matrix.version }}"' "$FW"
-          grep -qE 'const uint8_t relayPins\[RELAY_COUNT\] = \{${{ matrix.gpio }}\};' "$FW"
+
+          actual_gpio=$(grep 'const uint8_t relayPins\[RELAY_COUNT\]' "$FW" | sed -E 's/.*= *\{([^}]*)\}.*/\1/' | tr -d '[:space:]')
+          if [ "$actual_gpio" != "${{ matrix.gpio }}" ]; then
+            echo "GPIO mapping mismatch: expected ${{ matrix.gpio }}, got $actual_gpio"
+            exit 1
+          fi
 
           if grep -nE 'DEFAULT_WIFI_PASSWORD = "[^" ]+"|DEFAULT_WIFI_SSID = "[^" ]+"' "$FW"; then
             echo "Potential personal Wi-Fi credential found in source."
