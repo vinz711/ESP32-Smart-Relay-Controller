@@ -56,9 +56,9 @@ The project uses the following 4-channel relay configuration as its validated v3
 
 ## 8-channel development baseline — v3.3.0
 
-The repository now contains the validated 8-channel firmware development baseline in `firmware/v3.3.0/`. This expands the controller from four to eight independently configurable relay channels while retaining the tested scheduling, emergency control, runtime/power estimation, activity logging, responsive UI, and OTA functionality.
+The repository contains the tested 8-channel firmware development baseline in `firmware/v3.3.0/`. It expands the controller from four to eight independently configurable relay channels while retaining the tested scheduling, emergency control, runtime/power estimation, activity logging, responsive UI, and OTA functionality.
 
-**v3.3.0 is a development/validation baseline until the 8-channel hardware and CI validation cycle is complete. The v3.2.8 release remains the stable release.**
+**v3.3.0 remains a development/validation baseline. The v3.2.8 release remains the stable release until the 8-channel hardware and repository validation cycle is complete.**
 
 ### 8-channel GPIO mapping
 
@@ -74,6 +74,8 @@ The repository now contains the validated 8-channel firmware development baselin
 | 8 | GPIO 14 |
 
 The 8-channel firmware uses an active-LOW relay board: `LOW = ON`, `HIGH = OFF`.
+
+> **8-channel hardware safety:** The GPIOs only drive the relay inputs. Follow the relay-board voltage/current ratings, use suitable mains isolation, enclosure, protection and wiring, and have mains-voltage installation performed by a qualified person. The software wattage field is an energy-estimation input, not a hardware safety limit.
 
 ### 8-channel hardware
 
@@ -108,7 +110,7 @@ firmware/
 ├── v1.0.0/   # historical stable baseline
 ├── v2.0.1/   # historical development baseline
 ├── v3.2.8/   # current validated 4-channel stable release
-└── v3.3.0/   # validated 8-channel development baseline
+└── v3.3.0/   # 8-channel development/validation baseline
 ```
 
 Historical firmware is retained for traceability. New 4-channel fixes should start from v3.2.8, while 8-channel development should continue from v3.3.0.
@@ -159,7 +161,12 @@ The controller exposes Arduino OTA support after network initialization. Keep th
 
 ## CI
 
-GitHub Actions validates the supported firmware targets and mapping checks. CI compilation does not replace physical hardware validation.
+GitHub Actions compiles and validates both repository firmware baselines:
+
+- **v3.2.8** — validated 4-channel stable baseline, GPIO `5,17,16,4`
+- **v3.3.0** — 8-channel development/validation baseline, GPIO `19,18,5,17,32,33,25,14`
+
+CI compilation and source checks do not replace physical hardware validation. The 8-channel firmware must still be validated on the exact integrated 8-channel hardware before v3.3.0 is promoted to a stable release.
 
 ## Repository structure
 
