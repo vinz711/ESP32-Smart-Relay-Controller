@@ -23,13 +23,13 @@ All notable changes to this project are documented here.
 - Sanitized firmware defaults so personal Wi-Fi credentials are not committed.
 - Removed the reusable fixed OTA password from the public v3.2.9 source; OTA remains intended for a trusted local network only.
 
-**Validation status:** development/hardware-validation baseline. v3.2.8 remains the validated stable 4-channel release until the v3.2.9 firmware, CI, and physical hardware validation cycle is complete.
+**Validation status:** stable release. v3.2.9 passed CI validation and physical hardware validation on the documented 4-channel relay configuration and is published as the current stable release.
 
 ### Separation from v3.3.0
 
 The 8-channel relay development remains on the separate v3.3.0 development line and is not part of v3.2.9.
 
-## [v3.2.8] - Stable 4-Relay Aquarium Controller
+## [v3.2.8] - Previous Stable 4-Relay Aquarium Controller
 
 - Promoted the validated 4-relay aquarium controller to the stable baseline.
 - GPIO mapping: R1=5, R2=17, R3=16, R4=4.
