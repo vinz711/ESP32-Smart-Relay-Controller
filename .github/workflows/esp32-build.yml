@@ -30,12 +30,12 @@ jobs:
           arduino-cli core update-index
           arduino-cli core install esp32:esp32
 
-      - name: Prepare stable firmware
+      - name: Prepare v3.2.9 firmware
         run: |
           rm -rf /tmp/ESP32_Smart_Relay_Controller
           mkdir -p /tmp/ESP32_Smart_Relay_Controller
-          test -f firmware/v3.2.8/ESP32_Smart_Relay_Controller.ino
-          cp firmware/v3.2.8/ESP32_Smart_Relay_Controller.ino /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          test -f firmware/v3.2.9/ESP32_Smart_Relay_Controller.ino
+          cp firmware/v3.2.9/ESP32_Smart_Relay_Controller.ino /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
 
       - name: Validate source
         run: |
@@ -43,13 +43,13 @@ jobs:
             echo "Merge conflict markers found."
             exit 1
           fi
-          grep -q '#define FW_VERSION "3.2.8"' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
+          grep -q '#define FW_VERSION "3.2.9"' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
           grep -q 'const uint8_t relayPins\[RELAY_COUNT\] = {5, 17, 16, 4};' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino
           if grep -nE 'DEFAULT_WIFI_PASSWORD = "[^" ]+"|DEFAULT_WIFI_SSID = "[^" ]+"' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino; then
             echo "Potential personal Wi-Fi credential found in source."
             exit 1
           fi
-          echo "v3.2.8 source validation passed."
+          echo "v3.2.9 source validation passed."
 
       - name: Compile firmware
         run: |
@@ -63,12 +63,12 @@ jobs:
 
       - name: Publish build summary
         run: |
-          echo "## ESP32 Smart Relay Controller v3.2.8" >> "$GITHUB_STEP_SUMMARY"
+          echo "## ESP32 Smart Relay Controller v3.2.9" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Firmware: **v3.2.8**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Firmware: **v3.2.9**" >> "$GITHUB_STEP_SUMMARY"
           echo "- Board: \`esp32:esp32:esp32\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- GPIO: **R1=5, R2=17, R3=16, R4=4**" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Hardware status: **validated 4-relay baseline**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Hardware status: **development / hardware-validation baseline**" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo '```text' >> "$GITHUB_STEP_SUMMARY"
           ls -lh build/firmware >> "$GITHUB_STEP_SUMMARY"
