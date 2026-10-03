@@ -21,6 +21,7 @@ All notable changes to this project are documented here.
 - Preserved emergency OFF state capture and Resume behavior.
 - Preserved startup-safe relay initialization and active-LOW relay logic.
 - Sanitized firmware defaults so personal Wi-Fi credentials are not committed.
+- Removed the reusable fixed OTA password from the public v3.2.9 source; OTA remains intended for a trusted local network only.
 
 **Validation status:** development/hardware-validation baseline. v3.2.8 remains the validated stable 4-channel release until the v3.2.9 firmware, CI, and physical hardware validation cycle is complete.
 
