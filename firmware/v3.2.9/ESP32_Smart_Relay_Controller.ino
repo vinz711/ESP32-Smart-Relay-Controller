@@ -1,5 +1,5 @@
 /*
-  AQUARIUM CONTROLLER - v3.3.2
+  AQUARIUM CONTROLLER - v3.2.9
   ESP32 4-Channel Relay + Smart Management UI
 
   Tested baseline preserved from v2.0.1:
@@ -214,7 +214,7 @@ body.dark .icon{background:#173742}.title{flex:1;min-width:0}.title h2{margin:0;
   <div class="top-actions">
     <button class="top-btn" onclick="toggleTheme()">🌙</button>
     <button class="top-btn power-btn" onclick="scrollPower()">⚡ Power Settings</button>
-    <button class="top-btn alloff" onclick="allOff()">ALL OFF</button>
+    <button id="globalEmergencyBtn" class="top-btn alloff" onclick="allOff()">ALL OFF</button>
   </div>
 </header>
 
@@ -258,7 +258,7 @@ body.dark .icon{background:#173742}.title{flex:1;min-width:0}.title h2{margin:0;
   <div class="logs" id="logs">Loading...</div>
 </section>
 
-<div class="footer"><div>🐠 Aquarium Controller v3.3.2 • Persistent logs: 300 events</div><div id="footerConnection">ESP32</div></div>
+<div class="footer"><div>🐠 Aquarium Controller v3.2.9 • Persistent logs: 300 events</div><div id="footerConnection">ESP32</div></div>
 </div>
 
 <div class="modal" id="scheduleModal"><div class="box">
@@ -295,7 +295,7 @@ function demoStatus(){
   const watts=[0,0,0,0];
   const starts=[360,480,0,1380];
   const stops=[1320,1080,0,300];
-  return {version:"3.3.2",ip:"--",wifi:false,ota:true,networkMode:"Preview / Disconnected",rssi:0,uptime:"--",time:"--",bootReason:"--",logCount:1,autoCount:3,scheduleCount:3,totalRuntime:0,totalEnergy:0,nextSchedule:"09:30 • Aquarium Lights",demo:true,
+  return {version:"3.2.9",ip:"--",wifi:false,ota:true,networkMode:"Preview / Disconnected",rssi:0,uptime:"--",time:"--",bootReason:"--",logCount:1,autoCount:3,scheduleCount:3,totalRuntime:0,totalEnergy:0,nextSchedule:"09:30 • Aquarium Lights",demo:true,
     relays:names.map((name,i)=>({id:i+1,name,icon:icons[i],state:false,mode:i===2?"MANUAL":"AUTO",emergency:false,manualOverride:false,watts:watts[i],runtime:0,
       schedules:[{enabled:i!==2,start:starts[i],stop:stops[i],days:127,fullDay:false},{enabled:false,start:0,stop:0,days:127,fullDay:false},{enabled:false,start:0,stop:0,days:127,fullDay:false},{enabled:false,start:0,stop:0,days:127,fullDay:false},{enabled:false,start:0,stop:0,days:127,fullDay:false},{enabled:false,start:0,stop:0,days:127,fullDay:false}] }))};
 }
@@ -343,6 +343,12 @@ function render(){
   $("nextSchedule").textContent=DATA.nextSchedule||"--";
   $("footerConnection").textContent="ESP32 "+(DATA.wifi?"Connected":"Disconnected")+" | "+DATA.ip+" | FW "+DATA.version;
   const emergencies=DATA.relays.filter(r=>r.emergency).length;
+  const globalEmergencyBtn=$("globalEmergencyBtn");
+  if(globalEmergencyBtn){
+    const emergencyActive=emergencies>0;
+    globalEmergencyBtn.textContent=emergencyActive?"RESUME ALL":"ALL OFF";
+    globalEmergencyBtn.onclick=emergencyActive?resumeAll:allOff;
+  }
   $("systemStatus").innerHTML=DATA.wifi?(emergencies?`<span style="color:#f23d4b">● Emergency OFF active</span>`:`<span style="color:#0b9856">● ESP32 Connected</span>`):`<span style="color:#f23d4b">● Wi-Fi disconnected</span>`;
   $("systemInfo").textContent=`${DATA.relays.length} devices • ${DATA.autoCount} AUTO • ${DATA.scheduleCount} schedules • OTA: ${DATA.ota?"Ready":"Not ready"} • Logs: ${DATA.logCount||0}/300`;
   $("networkInfo").textContent=`${DATA.networkMode} • Time: ${DATA.time}`;
@@ -469,7 +475,7 @@ function filterLogs(){renderLogs()}
 function exportLogs(){const csv="Date/Time,Event\n"+LOGS.map(x=>`"${x.replaceAll('"','""')}"`).join("\n");const blob=new Blob([csv],{type:"text/csv"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="aquarium-activity-log.csv";a.click();URL.revokeObjectURL(a.href)}
 function clearLogs(){if(confirm("Clear all 300 stored activity log entries?"))api("/api/logs/clear").then(()=>{LOGS=[];renderLogs();loadStatus()})}
 function openDefaults(){alert("Each relay supports 6 schedules. Use All day and select every day for continuous operation. AUTO controls schedules; MANUAL provides direct control. Feeding / Maintenance pauses selected AUTO schedules temporarily without changing relay states. Emergency OFF isolates a relay until Resume AUTO.")}
-function otaInfo(){alert("OTA is enabled. From a computer on the same Wi-Fi/LAN, select Aquarium-Controller in the Arduino IDE network ports and upload. OTA password: aquarium-ota. OTA does not provide Internet access from outside your home.")}
+function otaInfo(){alert("OTA is enabled. From a computer on the same Wi-Fi/LAN, select Aquarium-Controller in the Arduino IDE network ports and upload. OTA authentication is not configured in the public source. Keep OTA on a trusted local network and do not expose it to the Internet.")}
 function closeModal(id){$(id).classList.remove("show")}
 function toggleTheme(){document.body.classList.toggle("dark");localStorage.setItem("aqTheme",document.body.classList.contains("dark")?"dark":"light")}
 function escapeHtml(v){return String(v).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
@@ -850,7 +856,8 @@ void connectWiFi(){
 
 void setupOTA(){
   ArduinoOTA.setHostname(DEVICE_HOSTNAME);
-  ArduinoOTA.setPassword("aquarium-ota");
+  // OTA authentication is intentionally not hard-coded in the public source.
+  // Keep OTA on a trusted local network.
   ArduinoOTA.onStart([](){Serial.println("OTA update started - forcing relays OFF");for(int i=0;i<RELAY_COUNT;i++){relays[i].state=false;setRelayHardware(i,false);}});
   ArduinoOTA.onEnd([](){Serial.println("OTA update complete");});
   ArduinoOTA.onProgress([](unsigned int p,unsigned int total){Serial.printf("OTA %u%%\r",(p*100)/total);});
@@ -1169,7 +1176,7 @@ void handleReset(){for(int i=0;i<RELAY_COUNT;i++)setRelayHardware(i,false);Littl
 void setup(){
   bootMillis=millis();
   Serial.begin(115200);delay(300);
-  Serial.println("\n====================================");Serial.println("Aquarium Controller v3.3.2");Serial.println("====================================");
+  Serial.println("\n====================================");Serial.println("Aquarium Controller v3.2.9");Serial.println("====================================");
 
   // Startup safety: every relay OFF before Wi-Fi/settings initialization.
   for(int i=0;i<RELAY_COUNT;i++){pinMode(relayPins[i],OUTPUT);digitalWrite(relayPins[i],RELAY_OFF);}
