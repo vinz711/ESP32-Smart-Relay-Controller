@@ -49,6 +49,10 @@ jobs:
             echo "Potential personal Wi-Fi credential found in source."
             exit 1
           fi
+          if grep -nE 'aquarium-ota|AQUARIUM CONTROLLER - v3\.3\.2|Aquarium Controller v3\.3\.2|setPassword\(' /tmp/ESP32_Smart_Relay_Controller/ESP32_Smart_Relay_Controller.ino; then
+            echo "Hard-coded OTA credential or stale firmware version marker found in v3.2.9 source."
+            exit 1
+          fi
           echo "v3.2.9 source validation passed."
 
       - name: Compile firmware
