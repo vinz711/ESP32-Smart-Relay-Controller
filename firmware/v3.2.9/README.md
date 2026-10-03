@@ -57,6 +57,12 @@ The relay board uses active-LOW control.
 - mDNS support
 - Safe relay initialization
 
+## OTA Security
+
+The public v3.2.9 firmware source does not contain a fixed or reusable OTA password. OTA is intended for a trusted local network only and must not be exposed directly to the public internet.
+
+Do not commit Wi-Fi passwords, OTA passwords, API keys, tokens, or other reusable credentials to the repository.
+
 ## Validation
 
 The firmware should be validated on the physical 4-channel relay hardware for:
