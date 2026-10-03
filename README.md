@@ -8,7 +8,7 @@ A Wi-Fi-enabled ESP32 relay controller with a responsive Smart Management dashbo
 
 ## Next release — v3.2.9
 
-**v3.2.9 is the updated 4-channel Smart Management UI and firmware baseline.** It keeps the validated 4-channel GPIO mapping and controller architecture while adding the updated dashboard and management features.
+**v3.2.9 is the updated 4-channel Smart Management UI and firmware development baseline.** It keeps the validated 4-channel GPIO mapping and controller architecture while adding the updated dashboard and management features.
 
 ### v3.2.9 highlights
 
@@ -48,13 +48,13 @@ The v3.2.9 UI is designed around the following sections:
 
 ### v3.2.9 UI screenshots
 
-#### Desktop — Dark Theme
+#### Desktop — Main Dashboard
 
-![v3.2.9 Desktop Dark UI](docs/ui/v3.2.9-desktop-dashboard-dark.png)
+![v3.2.9 Desktop Main Dashboard](docs/ui/v3.2.9-desktop-dashboard-light01.png)
 
-#### Desktop — Light Theme
+#### Desktop — Power and Activity View
 
-![v3.2.9 Desktop Light UI](docs/ui/v3.2.9-desktop-dashboard-light.png)
+![v3.2.9 Desktop Power and Activity View](docs/ui/v3.2.9-desktop-dashboard-light02.png)
 
 #### Mobile — Dark Theme
 
@@ -138,7 +138,7 @@ Power and energy values are software estimates based on the wattage configured f
 
 ## OTA
 
-The controller exposes Arduino OTA support after network initialization. Keep the ESP32 and development computer on the same reachable network and use the configured controller hostname/device entry for OTA updates.
+The controller exposes Arduino OTA support after network initialization. The public v3.2.9 firmware source does not contain a fixed or reusable OTA password. Keep the ESP32 and development computer on the same trusted local network and do not expose the OTA service directly to the public internet.
 
 ## CI and validation
 
