@@ -138,7 +138,7 @@ Power and energy values are software estimates based on the wattage configured f
 
 ## OTA
 
-The controller exposes Arduino OTA support after network initialization. Keep the ESP32 and development computer on the same reachable network and use the configured controller hostname/device entry for OTA updates.
+The controller exposes Arduino OTA support after network initialization. The public v3.2.9 firmware source does not contain a fixed or reusable OTA password. Keep the ESP32 and development computer on the same trusted local network and do not expose the OTA service directly to the public internet.
 
 ## CI and validation
 
