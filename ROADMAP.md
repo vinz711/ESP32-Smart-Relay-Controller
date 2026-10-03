@@ -1,6 +1,6 @@
 # Project Roadmap
 
-This roadmap describes the planned direction of the ESP32 Smart Relay Controller. The stable v3.2.8 release is the current validated baseline.
+This roadmap describes the planned direction of the ESP32 Smart Relay Controller.
 
 ## Completed — v3.2.8
 
@@ -29,20 +29,31 @@ The v3.2.8 baseline has been implemented and hardware tested with the 4-channel 
 - CI firmware validation
 - Final hardware validation
 
-## Next — v3.2.9+
+## In Progress — v3.2.9
 
-Future development should begin from `main` using a dedicated feature branch and pull request. Changes should be CI-tested and hardware-tested before becoming part of a release.
+v3.2.9 is the updated 4-channel Smart Management development/hardware-validation baseline.
 
-Potential areas for the next development cycle include:
+Current scope includes:
 
-- Further dashboard and UI/UX refinement
-- Additional diagnostics and system-status information
-- Improved monitoring and troubleshooting support
-- Expanded hardware-specific configuration profiles
-- Additional ESP32 and relay-board compatibility
-- Documentation and installation improvements
+- Smart Management desktop dashboard
+- Responsive mobile dashboard
+- Light and dark themes
+- Updated relay control cards
+- Temporary manual control
+- Feeding / Maintenance schedule pause
+- Emergency OFF / Resume improvements
+- Updated power settings presentation
+- Improved system status presentation
+- Updated persistent activity-log presentation
+- Updated project screenshots and UI documentation
 
-These items are candidates for future development and are not commitments to a particular release date or implementation order.
+v3.2.9 must complete firmware, CI, and physical hardware validation before it is promoted to the stable release baseline.
+
+## Separate Development Line — v3.3.0
+
+The 8-channel relay controller is being developed separately from the 4-channel v3.2.9 line.
+
+The 8-channel work uses a different GPIO mapping and requires its own CI and physical hardware-validation cycle before release.
 
 ## Future Direction
 

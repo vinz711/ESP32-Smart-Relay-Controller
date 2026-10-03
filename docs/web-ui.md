@@ -1,18 +1,56 @@
 # Web UI
 
-The controller provides a responsive web dashboard for relay control and configuration.
+The controller provides a responsive Smart Management web dashboard for relay control and configuration.
 
-## UI Goals
+## v3.2.9 UI
 
-- Desktop and mobile friendly
-- Relay cards with configurable names and icons
-- AUTO / MANUAL controls
-- Schedule controls
-- Emergency OFF
-- System status
-- Today's runtime
-- Estimated power usage
-- Activity log
-- Wi-Fi configuration
+The v3.2.9 4-channel dashboard is organized into the following areas:
 
-The UI should remain application-neutral so the same dashboard can control aquarium equipment, pumps, lights, fans, valves, or other relay devices.
+- Summary cards for active relays, today's runtime, estimated energy usage, and next scheduled start
+- Relay Control cards for all four channels
+- Relay state and AUTO / MANUAL mode indicators
+- Configurable relay names and icons
+- Schedule summary and next-action information
+- Temporary manual control duration
+- Per-relay ON/OFF controls
+- Per-relay Schedule and Settings controls
+- Per-relay Emergency OFF / Resume AUTO
+- Emergency ALL OFF / Resume ALL
+- Feeding / Maintenance schedule pause
+- Power Settings with per-device wattage configuration
+- Software-based energy and cost estimation
+- Quick Settings for names/icons, default schedules, Feeding / Maintenance, Wi-Fi, OTA, backup/restore, and factory reset
+- System Status with ESP32 connection, IP address, RSSI, uptime, and network/time information
+- Persistent searchable/exportable Activity Log
+- Light and dark themes
+- Responsive desktop and mobile layouts
+
+## Responsive behavior
+
+Desktop uses a two-column relay-control layout and a four-column power-settings layout. On smaller screens the relay cards and management panels collapse into a single-column mobile layout.
+
+## Application-neutral design
+
+The UI remains application-neutral so the same dashboard can control aquarium equipment, pumps, lights, fans, valves, or other relay devices. Default aquarium names/icons are only initial values and can be changed from the controller.
+
+## Power information
+
+Power and energy values shown by the dashboard are software estimates based on configured relay wattage and runtime. The controller does not contain an electrical power sensor.
+
+## Screenshots
+
+### Desktop — Main Dashboard
+
+![v3.2.9 desktop main dashboard](ui/v3.2.9-desktop-dashboard-light01.png)
+
+### Desktop — Power and Activity View
+
+![v3.2.9 desktop power and activity view](ui/v3.2.9-desktop-dashboard-light02.png)
+
+### Mobile — Dark Theme
+
+![v3.2.9 mobile dark dashboard](ui/v3.2.9-mobile-dashboard-dark.png)
+
+### Mobile — Light Theme
+
+![v3.2.9 mobile light dashboard](ui/v3.2.9-mobile-dashboard-light.png)
