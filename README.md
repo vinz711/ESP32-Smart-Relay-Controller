@@ -8,7 +8,7 @@ A Wi-Fi-enabled ESP32 relay controller with a responsive Smart Management dashbo
 
 ## Next release — v3.2.9
 
-**v3.2.9 is the updated 4-channel Smart Management UI and firmware baseline.** It keeps the validated 4-channel GPIO mapping and controller architecture while adding the updated dashboard and management features.
+**v3.2.9 is the updated 4-channel Smart Management UI and firmware development baseline.** It keeps the validated 4-channel GPIO mapping and controller architecture while adding the updated dashboard and management features.
 
 ### v3.2.9 highlights
 
@@ -48,13 +48,13 @@ The v3.2.9 UI is designed around the following sections:
 
 ### v3.2.9 UI screenshots
 
-#### Desktop — Dark Theme
+#### Desktop — Main Dashboard
 
-![v3.2.9 Desktop Dark UI](docs/ui/v3.2.9-desktop-dashboard-dark.png)
+![v3.2.9 Desktop Main Dashboard](docs/ui/v3.2.9-desktop-dashboard-light01.png)
 
-#### Desktop — Light Theme
+#### Desktop — Power and Activity View
 
-![v3.2.9 Desktop Light UI](docs/ui/v3.2.9-desktop-dashboard-light.png)
+![v3.2.9 Desktop Power and Activity View](docs/ui/v3.2.9-desktop-dashboard-light02.png)
 
 #### Mobile — Dark Theme
 
